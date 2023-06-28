@@ -1,4 +1,4 @@
-#https://docs.djangoproject.com/en/4.2/topics/db/models/
+# https://docs.djangoproject.com/en/4.2/topics/db/models/
 
 from django.db import models
 
@@ -50,5 +50,3 @@ class Window(models.Model):
 class WindowConfig(models.Model):
     windowID = models.CharField(max_length=100)
     allowOpen = models.BooleanField(default=False)
-
-
