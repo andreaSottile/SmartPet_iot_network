@@ -30,12 +30,12 @@ class HeartBeatConfig(models.Model):
     min = 0
 
 
-class Window(models.Model):
+class Trapdoor(models.Model):
     IN = 'INSIDE'
     OUT = 'OUTSIDE'
     DEF = 'DEFAULT'
     time = models.DateTimeField()
-    windowID = models.CharField(max_length=100)
+    trapdoor = models.CharField(max_length=100)
     DIRECTION_TRIGGER_CHOICES = (
         (IN, 'Inside'),
         (OUT, 'Outside'),
@@ -47,6 +47,6 @@ class Window(models.Model):
     )
 
 
-class WindowConfig(models.Model):
+class TrapdoorConfig(models.Model):
     windowID = models.CharField(max_length=100)
     allowOpen = models.BooleanField(default=False)
