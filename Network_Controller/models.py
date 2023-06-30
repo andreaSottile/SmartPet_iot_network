@@ -35,18 +35,18 @@ class Trapdoor(models.Model):
     OUT = 'OUTSIDE'
     DEF = 'DEFAULT'
     time = models.DateTimeField()
-    trapdoor = models.CharField(max_length=100)
+    trapdoorId = models.CharField(max_length=100)
     DIRECTION_TRIGGER_CHOICES = (
         (IN, 'Inside'),
         (OUT, 'Outside'),
         (DEF, 'Default')
     )
-    direction_Trigger = models.CharField(
-        choices=DIRECTION_TRIGGER_CHOICES,
-        default=DEF
-    )
+    direction_Trigger = models.CharField(max_length=10,
+                                         choices=DIRECTION_TRIGGER_CHOICES,
+                                         default=DEF
+                                         )
 
 
 class TrapdoorConfig(models.Model):
-    windowID = models.CharField(max_length=100)
+    trapdoorId = models.CharField(max_length=100)
     allowOpen = models.BooleanField(default=False)
