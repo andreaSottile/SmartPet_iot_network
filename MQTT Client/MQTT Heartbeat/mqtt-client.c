@@ -46,7 +46,7 @@
 #include <string.h>
 #include <strings.h>
 /*---------------------------------------------------------------------------*/
-#define LOG_MODULE "mqtt-client-food"
+#define LOG_MODULE "mqtt-client-heartbeat"
 #ifdef MQTT_CLIENT_CONF_LOG_LEVEL
 #define LOG_LEVEL MQTT_CLIENT_CONF_LOG_LEVEL
 #else
@@ -61,8 +61,7 @@ static const char *broker_ip = MQTT_CLIENT_BROKER_IP_ADDR;
 
 // Defaukt config values
 #define DEFAULT_BROKER_PORT         1883
-#define DEFAULT_PUBLISH_INTERVAL    (5 * CLOCK_SECOND)
-#define EATING_RATE    (14 * CLOCK_SECOND)
+#define DEFAULT_PUBLISH_INTERVAL    (1 * CLOCK_SECOND)
 
 
 // We assume that the broker does not require authentication
@@ -101,7 +100,6 @@ static char sub_topic[BUFFER_SIZE];
 // Periodic timer to check the state of the MQTT client
 #define STATE_MACHINE_PERIODIC     (CLOCK_SECOND >> 1)
 static struct etimer periodic_timer;
-static struct etimer meal_timer; //Pet behaviour simulation timer
 
 /*---------------------------------------------------------------------------*/
 /*
@@ -119,15 +117,13 @@ mqtt_status_t status;
 char broker_address[CONFIG_IP_ADDR_STR_LEN];
 
 /*---------------------------------------------------------------------------*/
-PROCESS(mqtt_client_process, "MQTT Client-food");
+PROCESS(mqtt_client_process, "MQTT Client-heartbeat");
 
-static int foodLevel = 50; //weight of food inside the container
-static bool filling = false; // actuator status detected on the container
-static bool eating = false; //Pet behaviour simulation status
-unsigned short containerID = 0;
+static int heartbeat = 100; //weight of food inside the container
+unsigned short tagID;
 static bool ready = false;
-static int meal_size = 30;
-static int meal_charge = 100
+
+
 
 /*---------------------------------------------------------------------------*/
 static void
@@ -135,31 +131,26 @@ pub_handler(const char *topic, uint16_t topic_len, const uint8_t *chunk, uint16_
   printf("Pub Handler: topic='%s' (len=%u), chunk_len=%u\n", topic, topic_len, chunk_len);
   if(strcmp(topic, "id_Config") == 0)
     {
-    containerID = (const unsigned short*) chunk;
+    tagID = (const unsigned short*) chunk;
     if(containerID>0)
         {
         mqtt_unsubscribe(&conn, NULL, "id_Config");
-        strcpy(sub_topic,"actuator_foodRefiller");
+        strcpy(sub_topic,"controller_Heartbeat");
         mqtt_subscribe(&conn, NULL, sub_topic, MQTT_QOS_LEVEL_0);
         }
     }
-  else if(strcmp(topic, "actuator_foodRefiller") == 0)
+  else if(strcmp(topic, "controller_Heartbeat") == 0)
   {
-    if(containerID != 0)
+    if(tagID != 0)
     {
-        printf("Received Actuator command\n");
-        if(strcmp((const char*) chunk, containerID + " start") == 0) {
+        printf("Received Controller message\n");
+        if(strcmp((const char*) chunk, "start") == 0) {
         LOG_INFO("Starting sensor\n");
         ready = true;
         rgb_led_set(RGB_LED_GREEN);
         }
-        else if(strcmp((const char*) chunk,containerID +  " filling") == 0) {
-        LOG_INFO("Bowl refilling started \n");
-        filling = true;
-        }
-        else if(strcmp((const char*) chunk,containerID +  " stop") == 0)  {
-        LOG_INFO("Bowl refilling stopped \n");
-        filling = false;
+        else if(strcmp((const char*) chunk, "alert") == 0) {
+        LOG_INFO("Heartbeat alert provided \n");
         }
     }
   }
@@ -223,13 +214,6 @@ static bool have_connectivity(void)
   return true;
 }
 
-void meal_time(int &foodLevel)
-{
-foodLevel -= meal_size;
-if(foodLevel<0)
-    foodLevel=0;
-}
-
 
 /*---------------------------------------------------------------------------*/
 PROCESS_THREAD(mqtt_client_process, ev, data)
@@ -246,31 +230,25 @@ PROCESS_THREAD(mqtt_client_process, ev, data)
                      linkaddr_node_addr.u8[2], linkaddr_node_addr.u8[5],
                      linkaddr_node_addr.u8[6], linkaddr_node_addr.u8[7]);
 
-  // Broker registration					 
+  // Broker registration
   mqtt_register(&conn, &mqtt_client_process, client_id, mqtt_event,
                   MAX_TCP_SEGMENT_SIZE);
   state=STATE_INIT;
-				    
-  // Initialize periodic timer to check the status 
+
+  // Initialize periodic timer to check the status
   etimer_set(&periodic_timer, DEFAULT_PUBLISH_INTERVAL);
-  etimer_set(&meal_timer, EATING_RATE);
   rgb_led_set(RGB_LED_RED);
   /* Main loop */
   while(1) {
 
     PROCESS_YIELD();
-    if(etimer_expired(&meal_timer)
-    {
-     meal_time(*foodLevel);
-     etimer_reset(&meal_timer);
-    }
 
     if((ev == PROCESS_EVENT_TIMER && data == &periodic_timer) || ev == PROCESS_EVENT_POLL){
-			  			  
+
 		  if(state==STATE_INIT && have_connectivity()){
 				 state = STATE_NET_OK;
-		  } 
-		  
+		  }
+
 		  if(state == STATE_NET_OK){
 			  // Connect to MQTT server
 			  printf("Connecting!\n");
@@ -278,7 +256,7 @@ PROCESS_THREAD(mqtt_client_process, ev, data)
 			  mqtt_connect(&conn, broker_address, DEFAULT_BROKER_PORT, (DEFAULT_PUBLISH_INTERVAL * 3) / CLOCK_SECOND, MQTT_CLEAN_SESSION_ON);
 			  state = STATE_CONNECTING;
 		  }
-		  
+
 		  if(state==STATE_CONNECTED){
 			  // Subscribe to a topic
 			  strcpy(sub_topic,"id_Config");
@@ -291,18 +269,16 @@ PROCESS_THREAD(mqtt_client_process, ev, data)
 
 			  state = STATE_SUBSCRIBED;
 		  }
- 
+
       if(state == STATE_SUBSCRIBED && ready){
         // Publish something
-        sprintf(pub_topic, "%s", "status_foodLevel");
-
-        if(filling) {
-          foodLevel += meal_charge;
-        }
-        LOG_INFO("New values: %d\n", foodLevel);
+        sprintf(pub_topic, "%s", "status_Heartbeat");
+        int var_heartbeat = (int) random_rand() % 150;
+        heartbeat = var_heartbeat + 40 ;
+        LOG_INFO("New values: %d\n", heartbeat);
         rgb_led_set(RGB_LED_GREEN);
-        sprintf(app_buffer, "{\"Bowl\": %d, \"foodLevel\": %d}", containerID,foodLevel);
-        
+        sprintf(app_buffer, "{\"SensorID\": %d, \"Heartbeat\": %d}", tagID,heartbeat);
+
         mqtt_publish(&conn, NULL, pub_topic, (uint8_t *)app_buffer,
         strlen(app_buffer), MQTT_QOS_LEVEL_0, MQTT_RETAIN_OFF);
       } else if ( state == STATE_DISCONNECTED ){
