@@ -85,28 +85,47 @@ def check_food_level(cid):
      Check food level left in each container, according to the most recent message received
 
      param cid: id of the food container to be checked
-     :return: 0 if everything is ok
+     :return: 0 if everything is ok; id of target bowl if refilling is necessary
      """
-    return 0
+
+    # check food level against requirements
+
+    # if below required level
+        # action: refill target bowl
+        # return "start_refill", cid
+
+    # if above max level
+        # return "stop_refill", cid
+
+    # else, no action to do
+    return 0, 0
 
 
 def check_trapdoor(direction, trapdoorId):
     """
-      Check food level left in each container, according to the most recent message received
+      Detected pet nearby a trapdoor; check if it's allowed to open it; notify the trapdoor which behavior to apply
 
-      param msg_content: id of the food container to be checked
+      param direction: check if pet is leaving or entering
+      param trapdoorId: trapdoor where pet is detected
       :return:  0 if everything is ok
       """
+    # check if trapdoor is allowed to open in the current direction
+    # if allowed
+    # return "open_trapdoor", trapdoorId
+    # else
     return 0
 
 
 def check_heartbeat(petId):
     """
-      Check food level left in each container, according to the most recent message received
+      Check heartbeat level; send alert to client_application if value is outside the safe range
 
       :return: 0 if everything is ok
       """
-    return 0
+    #if value out of safe range
+        # show alert on client app
+    # value is safe
+    return 0, 0
 
 
 def collect_data(msg_type, msg_raw):
@@ -118,12 +137,13 @@ def collect_data(msg_type, msg_raw):
     param raw_msg: a msg received in mqtt
     :return: (code,target)
     code 0: no further actions are necessary
-    other codes: more actions to be performed
+    other codes: more actions to be performed (topic to publish on)
+    target: content of the message to be published
     """
     msg_content = decode_message(msg_type, msg_raw)
     if msg_content == "error":
         display_error("Received MQTT message with no type")
-        return 0,
+        return 0, 0
     if msg_type == "food":
         save_food(msg_content)
         return check_food_level(msg_content.containerId)
@@ -133,4 +153,3 @@ def collect_data(msg_type, msg_raw):
     if msg_type == "trapdoor":
         save_trapdoor(msg_content)
         return check_trapdoor(msg_content.direction, msg_content.trapdoorId)
-
