@@ -3,16 +3,8 @@ import paho.mqtt.client as mqtt
 from iot.data_manager import collect_data
 
 
-def on_message(userdata, msg):
-    if msg.topic == "food":
-        receive("food", msg.payload)
-    if msg.topic == "heartbeat":
-        receive("heartbeat", msg.payload)
-    if msg.topic == "trapdoor":
-        receive("trapdoor", msg.payload)
 
-
-def receive(topic, msg):
+def receive(self, topic, msg):
     # receive msg
 
     # read content, save in DB if necessary
@@ -23,6 +15,20 @@ def receive(topic, msg):
         return
     # eventually, perform actions triggered by messages
     # if rec_msg_code == 1:
+
+    if str(rec_msg_code) == "open_trapdoor":
+        #globalStatus.setStatusValve(1)
+        self.client.publish("actuator_trapdoor", rec_msg_target + "open")
+    elif str(rec_msg_code) == "closed_trapdoor":
+        #globalStatus.setStatusValve(0)
+        self.client.publish("actuator_trapdoor", rec_msg_target + "closed")
+    elif str(rec_msg_code) == "start_refill":
+        #globalStatus.setStatusValve(1)
+        self.client.publish("actuator_foodRefiller", rec_msg_target + "filling")
+    elif str(rec_msg_code) == "stop_refill":
+        #globalStatus.setStatusValve(0)
+        self.client.publish("actuator_foodRefiller", rec_msg_target + "stop")
+
 
 
 class MqttNode:
@@ -38,7 +44,7 @@ class MqttNode:
     def task(self, *args):
         self.client = mqtt.Client()
         self.client.on_connect = self.on_connect
-        self.client.on_message = on_message
+        self.client.on_message = self.on_message
 
         print("mqtt node is connecting")
         self.client.connect(args[0], args[1])
@@ -54,6 +60,14 @@ class MqttNode:
 
     def disconnect(self):
         self.client.disconnect()
+
+    def on_message(self, msg):
+        if msg.topic == "food":
+            receive("food", msg.payload)
+        if msg.topic == "heartbeat":
+            receive("heartbeat", msg.payload)
+        if msg.topic == "trapdoor":
+            receive("trapdoor", msg.payload)
 
     def on_connect(self):
         self.client.subscribe("food")
