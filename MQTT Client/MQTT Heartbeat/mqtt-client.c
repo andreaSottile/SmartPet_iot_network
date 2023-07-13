@@ -77,6 +77,15 @@ static uint8_t state;
 #define STATE_CONNECTED       3
 #define STATE_SUBSCRIBED      4
 #define STATE_DISCONNECTED    5
+
+
+static uint8_t boot;
+#define BOOT_NOT_STARTED	  0
+#define BOOT_INIT       	  1
+#define BOOT_ID_NEGOTIATION   2
+#define BOOT_ID_DENIED        3
+#define BOOT_COMPLETED        4
+#define BOOT_FAILED           5
 /*---------------------------------------------------------------------------*/
 /* PUBLISH/SUBSCRIBE MESSAGE TEMPLATES */
 #define NODE_TYPE "heart"
@@ -134,36 +143,20 @@ static bool ready = false;
 static void
 pub_handler(const char *topic, uint16_t topic_len, const uint8_t *chunk, uint16_t chunk_len){
   printf("Pub Handler: topic='%s' (len=%u), chunk_len=%u\n", topic, topic_len, chunk_len);
-  if(strcmp(topic, TOPIC_ID_CONFIG) == 0)
-
-    // TODO GET ID
+  if(strcmp(topic,TOPIC_ID_CONFIG) == 0)
+   // received answer during Id negotiation
     {
-    tagID = (const unsigned short*) chunk;
-    if(tagID>0)
-        {
-        mqtt_unsubscribe(&conn, NULL, TOPIC_ID_CONFIG);
-        strcpy(sub_topic,"controller_Heartbeat");
-        mqtt_subscribe(&conn, NULL, sub_topic, MQTT_QOS_LEVEL_0);
-        }
-    }
-  else if(strcmp(topic, "controller_Heartbeat") == 0)
-  {
-    if(tagID != 0)
-    {
-        printf("Received Controller message\n");
-        if(strcmp((const char*) chunk, "start") == 0) {
-        LOG_INFO("Starting sensor\n");
-        ready = true;
-        rgb_led_set(RGB_LED_GREEN);
-        }
-        else if(strcmp((const char*) chunk, "alert") == 0) {
-        LOG_INFO("Heartbeat alert provided \n");
-        }
-    }
-  }
-  else {
-    LOG_ERR("Node " + tagID + ": Topic not valid!\n");
-  }
+      if(strcmp((const char*) chunk, NODE_TYPE+" "+tagId+" approved" ) == 0)
+      { // controlled accepted Id proposal
+         mqtt_unsubscribe(&conn, NULL,TOPIC_ID_CONFIG);
+         strcpy(sub_topic,TOPIC_ACTUATOR);
+         mqtt_subscribe(&conn, NULL, sub_topic, MQTT_QOS_LEVEL_0);
+         state = STATE_SUBSCRIBED;
+      }
+      if(strcmp((const char*) chunk, NODE_TYPE+" "+tagId+" denied" ) == 0)
+      { // controlled rejected Id proposal
+         boot = BOOT_ID_DENIED;
+      }
 }
 /*---------------------------------------------------------------------------*/
 static void mqtt_event(struct mqtt_connection *m, mqtt_event_t event, void *data)
@@ -225,7 +218,7 @@ static bool have_connectivity(void)
 /*---------------------------------------------------------------------------*/
 PROCESS_THREAD(mqtt_client_process, ev, data)
 {
-
+  boot = BOOT_NOT_STARTED;
   PROCESS_BEGIN();
 
 
@@ -241,7 +234,7 @@ PROCESS_THREAD(mqtt_client_process, ev, data)
   mqtt_register(&conn, &mqtt_client_process, client_id, mqtt_event,
                   MAX_TCP_SEGMENT_SIZE);
   state=STATE_INIT;
-
+  boot = BOOT_INIT;
   // Initialize periodic timer to check the status
   etimer_set(&periodic_timer, DEFAULT_PUBLISH_INTERVAL);
   rgb_led_set(RGB_LED_RED);
@@ -264,7 +257,7 @@ PROCESS_THREAD(mqtt_client_process, ev, data)
 			  state = STATE_CONNECTING;
 		  }
 
-		  if(state==STATE_CONNECTED){
+          if(state==STATE_CONNECTED){
 			  // Subscribe to a topic
 			  strcpy(sub_topic,TOPIC_ID_CONFIG);
 			  status = mqtt_subscribe(&conn, NULL, sub_topic, MQTT_QOS_LEVEL_0);
@@ -273,28 +266,40 @@ PROCESS_THREAD(mqtt_client_process, ev, data)
 				LOG_ERR("Tried to subscribe but command queue was full!\n");
 				PROCESS_EXIT();
 			  }
-
-			  state = STATE_SUBSCRIBED;
-		  }
-      if(ready) {
-          if(state == STATE_SUBSCRIBED){
-            // Publish something
-            sprintf(pub_topic, "%s", TOPIC_SENSOR_DATA;
+              tagId = 1 + (int) random_rand() % 100;
+			  boot = BOOT_ID_NEGOTIATION;
+		  }  
+         if ((boot = BOOT_COMPLETED) && (state == STATE_SUBSCRIBED){
+            // Publish periodic sensor data
+            
+            // simulate random change in heartbeat
             int var_heartbeat = (int) random_rand() % 150;
             heartbeat = var_heartbeat + 40 ;
-            LOG_INFO("New values: %d\n", heartbeat);
-            rgb_led_set(RGB_LED_GREEN);
-            sprintf(app_buffer, PUBLISH_MSG_TEMPLATE, tagID,heartbeat);
+            LOG_INFO("Heartbeat value: %d\n", heartbeat);
+
+            sprintf(pub_topic, "%s",TOPIC_SENSOR_DATA);
+ 
+            sprintf(app_buffer, PUBLISH_MSG_TEMPLATE, tagId, heartbeat);
 
             mqtt_publish(&conn, NULL, pub_topic, (uint8_t *)app_buffer, strlen(app_buffer), MQTT_QOS_LEVEL_0, MQTT_RETAIN_OFF);
-          } else if ( state == STATE_DISCONNECTED ){
-            LOG_ERR("Disconnected from MQTT broker\n");
-            ready = false;
-            rgb_led_set(RGB_LED_RED);
-            // Recover from error
-            state = STATE_INIT;
+        }
+        if (boot == BOOT_ID_DENIED ) {
+             tagId = 1 + (int) random_rand() % 100;
+             boot = BOOT_ID_NEGOTIATION;
+        }
+        if (boot == BOOT_ID_NEGOTIATION) {
+           // id negotiation
+            sprintf(app_buffer, NODE_TYPE+" "+tagId+" awakens");
+            mqtt_publish(&conn, NULL, TOPIC_ID_CONFIG, (uint8_t *)app_buffer, strlen(app_buffer), MQTT_QOS_LEVEL_0, MQTT_RETAIN_OFF);
           }
-      }
+
+        if ( state == STATE_DISCONNECTED ){
+           LOG_ERR("Disconnected from MQTT broker\n");
+           boot = BOOT_FAILED;
+           rgb_led_set(RGB_LED_RED);
+           // Recover from error
+           state = STATE_INIT;
+        }
 	etimer_set(&periodic_timer, DEFAULT_PUBLISH_INTERVAL);
     }
   }

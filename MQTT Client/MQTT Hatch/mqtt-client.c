@@ -81,6 +81,13 @@ static uint8_t state;
 #define STATE_SUBSCRIBED      4
 #define STATE_DISCONNECTED    5
 
+static uint8_t boot;
+#define BOOT_NOT_STARTED	  0
+#define BOOT_INIT       	  1
+#define BOOT_ID_NEGOTIATION   2
+#define BOOT_ID_DENIED        3
+#define BOOT_COMPLETED        4
+#define BOOT_FAILED           5
 /*---------------------------------------------------------------------------*/
 /* PUBLISH/SUBSCRIBE MESSAGE TEMPLATES */
 #define NODE_TYPE "heart"
@@ -131,7 +138,6 @@ char broker_address[CONFIG_IP_ADDR_STR_LEN];
 PROCESS(mqtt_client_process, "MQTT Client-hatch");
 
 unsigned short hatchId;
-static bool ready = false;
 static bool hatch_open = false;
 unsigned short int currentPetLocation = TRIGGER_NONE;
 unsigned short int lastPetLocation = TRIGGER_NONE;
@@ -141,25 +147,40 @@ int pet_behavior_wait;
 static void
 pub_handler(const char *topic, uint16_t topic_len, const uint8_t *chunk, uint16_t chunk_len){
   printf("Pub Handler: topic='%s' (len=%u), chunk_len=%u\n", topic, topic_len, chunk_len);
-  // TODO RECEIVE ID
-  if(strcmp(topic, "actuator_hatch") == 0) {
-    printf("Received Hatch Actuator command\n");
-    if(strcmp((const char*) chunk, "start") == 0) {
-        LOG_INFO("Starting sensor\n");
-        ready = true;
-        rgb_led_set(RGB_LED_GREEN);
-    }
-    else if(strcmp((const char*) chunk, hatchId +  "_close") == 0) {
-      LOG_INFO("Hatch %d closing \n",hatchId);
-      open = false;
-    }
-    else if(strcmp((const char*) chunk, hatchId +  "_open") == 0)  {
-      LOG_INFO(("Hatch %d opening \n", hatchId);
-      open = true;
-    }
-  }
-  else {
-    LOG_ERR("Node " + hatchId + ": Topic not valid!\n");
+  if(strcmp(topic,TOPIC_ID_CONFIG) == 0)
+   // received answer during Id negotiation
+    {
+      if(strcmp((const char*) chunk, NODE_TYPE+" "+hatchId+" approved" ) == 0)
+      { // controlled accepted Id proposal
+         mqtt_unsubscribe(&conn, NULL,TOPIC_ID_CONFIG);
+         strcpy(sub_topic,TOPIC_ACTUATOR);
+         mqtt_subscribe(&conn, NULL, sub_topic, MQTT_QOS_LEVEL_0);
+         state = STATE_SUBSCRIBED;
+      }
+      if(strcmp((const char*) chunk, NODE_TYPE+" "+hatchId+" denied" ) == 0)
+      { // controlled rejected Id proposal
+         boot = BOOT_ID_DENIED;
+      }
+   // received message for actuator
+  else if(strcmp(topic, TOPIC_ACTUATOR) == 0)
+  {
+      if(strcmp((const char*) chunk, hatchId+" start" ) == 0) {
+         boot = BOOT_COMPLETED;
+         printf("Hatch Sensor %d Started \n",hatchId);
+         LOG_INFO("Starting sensor %d \n",hatchId);
+         rgb_led_set(RGB_LED_GREEN);
+      }
+      else if(strcmp((const char*) chunk,hatchId + " open") == 0) {
+         LOG_INFO("Hatch %d opening \n",hatchId);
+         printf("Hatch %d opening \n",hatchId);
+         open = true;
+      }
+      else if(strcmp((const char*) chunk,hatchId +  " close") == 0)  {
+         LOG_INFO("Hatch %d closed \n",hatchId);
+         printf("Hatch %d closed \n",hatchId);
+         open = false;
+         }
+
   }
 }
 /*---------------------------------------------------------------------------*/
@@ -224,7 +245,7 @@ void trigger_sensor(int sensor_status)
     // if pet location has not changed, nothing to notify
     if (sensor_status != lastPetLocation) {
 
-        if (ready) {
+        if (boot == BOOT_COMPLETED) {
             // communicate new pet location to controller
             if(state == STATE_SUBSCRIBED){
                 // Publish something
@@ -235,7 +256,7 @@ void trigger_sensor(int sensor_status)
                 mqtt_publish(&conn, NULL, pub_topic, (uint8_t *)app_buffer, strlen(app_buffer), MQTT_QOS_LEVEL_0, MQTT_RETAIN_OFF);
             } else if ( state == STATE_DISCONNECTED ){
                 LOG_ERR("Disconnected from MQTT broker\n");
-                ready = false;
+                boot = BOOT_FAILED
                 rgb_led_set(RGB_LED_RED);
                 // Recover from error
                 state = STATE_INIT;
@@ -251,6 +272,7 @@ void trigger_sensor(int sensor_status)
 /*---------------------------------------------------------------------------*/
 PROCESS_THREAD(mqtt_client_process, ev, data)
 {
+  boot = BOOT_NOT_STARTED;
   PROCESS_BEGIN();
 
   printf("MQTT Client Hatch Sensor Process\n");
@@ -265,7 +287,8 @@ PROCESS_THREAD(mqtt_client_process, ev, data)
   mqtt_register(&conn, &mqtt_client_process, client_id, mqtt_event,
                   MAX_TCP_SEGMENT_SIZE);
   state=STATE_INIT;
-				    
+
+  boot = BOOT_INIT;
   // Initialize periodic timer to check the status 
   etimer_set(&pet_timer, DEFAULT_PET_BEHAVIOR_INTERVAL);
   rgb_led_set(RGB_LED_RED);
@@ -295,7 +318,7 @@ PROCESS_THREAD(mqtt_client_process, ev, data)
                 etimer_set(&sensor_timer, DEFAULT_SCAN_INTERVAL);
           }
       }
-        // TODO get hatchID
+
       if(etimer_expired(&pet_timer) {
           // simulate pet behaviour
             if (pet_behavior_wait == 0) {
@@ -325,20 +348,30 @@ PROCESS_THREAD(mqtt_client_process, ev, data)
 
       if(state==STATE_CONNECTED){
           // Subscribe to a topic
-          strcpy(sub_topic,TOPIC_ACTUATOR);
+          strcpy(sub_topic,TOPIC_ID_CONFIG);
           status = mqtt_subscribe(&conn, NULL, sub_topic, MQTT_QOS_LEVEL_0);
           printf("Subscribing!\n");
           if(status == MQTT_STATUS_OUT_QUEUE_FULL) {
             LOG_ERR("Tried to subscribe but command queue was full!\n");
             PROCESS_EXIT();
           }
-
-          state = STATE_SUBSCRIBED;
+          hatchID = 1 + (int) random_rand() % 100;
+		  boot = BOOT_ID_NEGOTIATION;
+      }
+      if (boot == BOOT_ID_DENIED ) {
+         hatchId = 1 + (int) random_rand() % 100;
+         boot = BOOT_ID_NEGOTIATION;
       }
 
+      // TODO evitare che questa spammi messaggi
+      if (boot == BOOT_ID_NEGOTIATION) {
+         // id negotiation
+         sprintf(app_buffer, NODE_TYPE+" "+hatchId+" awakens");
+         mqtt_publish(&conn, NULL, TOPIC_ID_CONFIG, (uint8_t *)app_buffer, strlen(app_buffer), MQTT_QOS_LEVEL_0, MQTT_RETAIN_OFF);
+      }
       if ( state == STATE_DISCONNECTED ){
         LOG_ERR("Disconnected from MQTT broker\n");
-        ready = false;
+        boot = BOOT_FAILED;
         rgb_led_set(RGB_LED_RED);
         // Recover from error
         state = STATE_INIT;

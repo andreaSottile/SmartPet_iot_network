@@ -77,6 +77,14 @@ static uint8_t state;
 #define STATE_CONNECTED       3
 #define STATE_SUBSCRIBED      4
 #define STATE_DISCONNECTED    5
+
+static uint8_t boot;
+#define BOOT_NOT_STARTED	  0
+#define BOOT_INIT       	  1
+#define BOOT_ID_NEGOTIATION   2
+#define BOOT_ID_DENIED        3
+#define BOOT_COMPLETED        4
+#define BOOT_FAILED           5
 /*---------------------------------------------------------------------------*/
 /* PUBLISH/SUBSCRIBE MESSAGE TEMPLATES */
 #define NODE_TYPE "food"
@@ -130,7 +138,6 @@ static int foodLevel = 50; //weight of food inside the container
 static bool filling = false; // actuator status detected on the container
 static bool eating = false; //Pet behaviour simulation status
 unsigned short containerID = 0;
-static bool ready = false;
 static int meal_size = 30;
 static int meal_charge = 100
 
@@ -139,37 +146,38 @@ static void
 pub_handler(const char *topic, uint16_t topic_len, const uint8_t *chunk, uint16_t chunk_len){
   printf("Pub Handler: topic='%s' (len=%u), chunk_len=%u\n", topic, topic_len, chunk_len);
   if(strcmp(topic,TOPIC_ID_CONFIG) == 0)
+   // received answer during Id negotiation
     {
-    containerID = (const unsigned short*) chunk;
-    if(containerID>0)
-        {
-        mqtt_unsubscribe(&conn, NULL,TOPIC_ID_CONFIG);
-        strcpy(sub_topic,TOPIC_ACTUATOR);
-        mqtt_subscribe(&conn, NULL, sub_topic, MQTT_QOS_LEVEL_0);
-        }
-    }
+      if(strcmp((const char*) chunk, NODE_TYPE+" "+containerID+" approved" ) == 0)
+      { // controlled accepted Id proposal
+         mqtt_unsubscribe(&conn, NULL,TOPIC_ID_CONFIG);
+         strcpy(sub_topic,TOPIC_ACTUATOR);
+         mqtt_subscribe(&conn, NULL, sub_topic, MQTT_QOS_LEVEL_0);
+         state = STATE_SUBSCRIBED;
+      }
+      if(strcmp((const char*) chunk, NODE_TYPE+" "+containerID+" denied" ) == 0)
+      { // controlled rejected Id proposal
+         boot = BOOT_ID_DENIED;
+      }
+   // received message for actuator
   else if(strcmp(topic, TOPIC_ACTUATOR) == 0)
   {
-    if(containerID != 0)
-    {
-        printf("Received Food Actuator command\n");
-        if(strcmp((const char*) chunk, containerID + "_start") == 0) {
-        LOG_INFO("Starting sensor\n");
-        ready = true;
-        rgb_led_set(RGB_LED_GREEN);
-        }
-        else if(strcmp((const char*) chunk,containerID +  "_filling") == 0) {
-        LOG_INFO("Bowl %d refilling started \n",containerID);
-        filling = true;
-        }
-        else if(strcmp((const char*) chunk,containerID +  "_stop") == 0)  {
-        LOG_INFO("Bowl %d  refilling stopped \n",containerID);
-        filling = false;
-        }
-    }
-  }
-  else {
-    LOG_ERR("Node " + containerID + ": Topic not valid!\n");
+      if(strcmp((const char*) chunk, containerID+" start" ) == 0) {
+         boot = BOOT_COMPLETED;
+         printf("Food Sensor %d Started \n",containerID);
+         LOG_INFO("Starting sensor %d \n",containerID);
+         rgb_led_set(RGB_LED_GREEN);
+      }
+      else if(strcmp((const char*) chunk,containerID + " filling") == 0) {
+         LOG_INFO("Bowl %d refilling started \n",containerID);
+         printf("Bowl %d refilling started \n",containerID);
+         filling = true;
+      }
+      else if(strcmp((const char*) chunk,containerID +  " stop") == 0)  {
+         LOG_INFO("Bowl %d  refilling stopped \n",containerID);
+         filling = false;
+         }
+
   }
 }
 /*---------------------------------------------------------------------------*/
@@ -239,7 +247,7 @@ if(foodLevel<0)
 /*---------------------------------------------------------------------------*/
 PROCESS_THREAD(mqtt_client_process, ev, data)
 {
-
+  boot = BOOT_NOT_STARTED;
   PROCESS_BEGIN();
 
 
@@ -260,6 +268,8 @@ PROCESS_THREAD(mqtt_client_process, ev, data)
   etimer_set(&periodic_timer, DEFAULT_PUBLISH_INTERVAL);
   etimer_set(&meal_timer, EATING_RATE);
   rgb_led_set(RGB_LED_RED);
+
+  boot = BOOT_INIT;
   /* Main loop */
   while(1) {
 
@@ -286,7 +296,6 @@ PROCESS_THREAD(mqtt_client_process, ev, data)
 		  
 		  if(state==STATE_CONNECTED){
 			  // Subscribe to a topic
-			  // TODO ID CONFIG
 			  strcpy(sub_topic,TOPIC_ID_CONFIG);
 			  status = mqtt_subscribe(&conn, NULL, sub_topic, MQTT_QOS_LEVEL_0);
 			  printf("Subscribing!\n");
@@ -294,30 +303,41 @@ PROCESS_THREAD(mqtt_client_process, ev, data)
 				LOG_ERR("Tried to subscribe but command queue was full!\n");
 				PROCESS_EXIT();
 			  }
-
-			  state = STATE_SUBSCRIBED;
+              containerID = 1 + (int) random_rand() % 100;
+			  boot = BOOT_ID_NEGOTIATION;
 		  }
  
-      if(state == STATE_SUBSCRIBED && ready){
-        // Publish something
-        sprintf(pub_topic, "%s",TOPIC_SENSOR_DATA);
 
-        if(filling) {
-          foodLevel += meal_charge;
+        if ((boot = BOOT_COMPLETED) && (state == STATE_SUBSCRIBED){
+            // Publish something
+            sprintf(pub_topic, "%s",TOPIC_SENSOR_DATA);
+
+            if(filling) {
+              foodLevel += meal_charge;
+            }
+            LOG_INFO("New values: %d\n", foodLevel);
+            rgb_led_set(RGB_LED_GREEN);
+            sprintf(app_buffer, PUBLISH_MSG_TEMPLATE, containerID,foodLevel);
+
+            mqtt_publish(&conn, NULL, pub_topic, (uint8_t *)app_buffer, strlen(app_buffer), MQTT_QOS_LEVEL_0, MQTT_RETAIN_OFF);
         }
-        LOG_INFO("New values: %d\n", foodLevel);
-        rgb_led_set(RGB_LED_GREEN);
-        sprintf(app_buffer, PUBLISH_MSG_TEMPLATE, containerID,foodLevel);
-        
-        mqtt_publish(&conn, NULL, pub_topic, (uint8_t *)app_buffer,
-        strlen(app_buffer), MQTT_QOS_LEVEL_0, MQTT_RETAIN_OFF);
-      } else if ( state == STATE_DISCONNECTED ){
-        LOG_ERR("Disconnected from MQTT broker\n");
-        ready = false;
-        rgb_led_set(RGB_LED_RED);
-        // Recover from error
-        state = STATE_INIT;
-      }
+        if (boot == BOOT_ID_DENIED ) {
+             containerID = 1 + (int) random_rand() % 100;
+             boot = BOOT_ID_NEGOTIATION;
+        }
+        if (boot == BOOT_ID_NEGOTIATION) {
+           // id negotiation
+            sprintf(app_buffer, NODE_TYPE+" "+containerID+" awakens");
+            mqtt_publish(&conn, NULL, TOPIC_ID_CONFIG, (uint8_t *)app_buffer, strlen(app_buffer), MQTT_QOS_LEVEL_0, MQTT_RETAIN_OFF);
+          }
+
+        if ( state == STATE_DISCONNECTED ){
+           LOG_ERR("Disconnected from MQTT broker\n");
+           boot = BOOT_FAILED;
+           rgb_led_set(RGB_LED_RED);
+           // Recover from error
+           state = STATE_INIT;
+        }
 	etimer_set(&periodic_timer, DEFAULT_PUBLISH_INTERVAL);
     }
   }
