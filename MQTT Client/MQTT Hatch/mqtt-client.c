@@ -82,6 +82,13 @@ static uint8_t state;
 #define STATE_DISCONNECTED    5
 
 /*---------------------------------------------------------------------------*/
+/* PUBLISH/SUBSCRIBE MESSAGE TEMPLATES */
+#define NODE_TYPE "heart"
+#define TOPIC_ID_CONFIG "id_config"
+#define TOPIC_SENSOR_DATA "hatch_sensor"
+#define PUBLISH_MSG_TEMPLATE "hatch:%d;direction:%d"
+#define TOPIC_ACTUATOR "hatch_actuator"
+/*---------------------------------------------------------------------------*/
 PROCESS_NAME(mqtt_client_process);
 AUTOSTART_PROCESSES(&mqtt_client_process);
 
@@ -134,6 +141,7 @@ int pet_behavior_wait;
 static void
 pub_handler(const char *topic, uint16_t topic_len, const uint8_t *chunk, uint16_t chunk_len){
   printf("Pub Handler: topic='%s' (len=%u), chunk_len=%u\n", topic, topic_len, chunk_len);
+  // TODO RECEIVE ID
   if(strcmp(topic, "actuator_hatch") == 0) {
     printf("Received Hatch Actuator command\n");
     if(strcmp((const char*) chunk, "start") == 0) {
@@ -210,28 +218,33 @@ static bool have_connectivity(void)
   return true;
 }
 
-void trigger_sensor(int sensor_data)
+// Sensor has 3 states: detected pet inside, detected pet outside, no pet detected
+void trigger_sensor(int sensor_status)
 {
-    if (sensor_data != lastPetLocation) {
+    // if pet location has not changed, nothing to notify
+    if (sensor_status != lastPetLocation) {
+
         if (ready) {
+            // communicate new pet location to controller
             if(state == STATE_SUBSCRIBED){
                 // Publish something
-                sprintf(pub_topic, "%s", "hatch");
+                sprintf(pub_topic, "%s", TOPIC_SENSOR_DATA);
 
-                sprintf(app_buffer, "{\"Hatch\": %d, \"foodLevel\": %d}", hatchId,sensor_data);
+                sprintf(app_buffer, PUBLISH_MSG_TEMPLATE, hatchId,sensor_status);
 
                 mqtt_publish(&conn, NULL, pub_topic, (uint8_t *)app_buffer, strlen(app_buffer), MQTT_QOS_LEVEL_0, MQTT_RETAIN_OFF);
-              } else if ( state == STATE_DISCONNECTED ){
+            } else if ( state == STATE_DISCONNECTED ){
                 LOG_ERR("Disconnected from MQTT broker\n");
                 ready = false;
                 rgb_led_set(RGB_LED_RED);
                 // Recover from error
                 state = STATE_INIT;
-              }
             }
+
         }
     }
-    lastPetLocation = sensor_data;
+    // update current position
+    lastPetLocation = sensor_status;
 }
 
 
@@ -240,7 +253,7 @@ PROCESS_THREAD(mqtt_client_process, ev, data)
 {
   PROCESS_BEGIN();
 
-  printf("MQTT Client Process\n");
+  printf("MQTT Client Hatch Sensor Process\n");
 
   // Initialize the ClientID as MAC address
   snprintf(client_id, BUFFER_SIZE, "%02x%02x%02x%02x%02x%02x",
@@ -255,25 +268,47 @@ PROCESS_THREAD(mqtt_client_process, ev, data)
 				    
   // Initialize periodic timer to check the status 
   etimer_set(&pet_timer, DEFAULT_PET_BEHAVIOR_INTERVAL);
-  etimer_set(&sensor_timer, DEFAULT_SCAN_INTERVAL);
   rgb_led_set(RGB_LED_RED);
   /* Main loop */
   while(1) {
 
       PROCESS_YIELD();
 
+      // For a real sensor, this would be an interruption callback
+      // for simulation purpose, send a trigger when the sensor detect anything
+      if (currentPetLocation != TRIGGER_NONE) {
+            trigger_sensor(currentPetLocation)
+
+            // start timer to close the hatch
+            etimer_set(&sensor_timer, DEFAULT_SCAN_INTERVAL);
+      }
+
+      // hatch closing: wait for a delay after pet is detected
+      if(etimer_expired(&sensor_timer)  {
+          if (currentPetLocation == TRIGGER_NONE) {
+            // close hatch only if pet is away
+                open = false
+                etimer_reset(&sensor_timer);
+          }
+          else{
+            // if pet is still around the hatch, wait for more time
+                etimer_set(&sensor_timer, DEFAULT_SCAN_INTERVAL);
+          }
+      }
+        // TODO get hatchID
       if(etimer_expired(&pet_timer) {
           // simulate pet behaviour
             if (pet_behavior_wait == 0) {
                 // random counter for movement
                 pet_behavior_wait = 1 + (int) random_rand() % 30;
-                // random position (it teleports? it's fine for a simulation)
+                // new random position (it teleports? it's fine for a simulation)
                 currentPetLocation = (random_rand() % 3)
             }
             else
                 pet_behavior_wait--;
             // reset timer
-            retimer_reset(&pet_timer);
+            etimer_reset(&pet_timer);
+            etimer_set(&pet_timer, DEFAULT_PET_BEHAVIOR_INTERVAL);
       }
 
       if(state==STATE_INIT && have_connectivity()){
@@ -290,7 +325,7 @@ PROCESS_THREAD(mqtt_client_process, ev, data)
 
       if(state==STATE_CONNECTED){
           // Subscribe to a topic
-          strcpy(sub_topic,"hatch");
+          strcpy(sub_topic,TOPIC_ACTUATOR);
           status = mqtt_subscribe(&conn, NULL, sub_topic, MQTT_QOS_LEVEL_0);
           printf("Subscribing!\n");
           if(status == MQTT_STATUS_OUT_QUEUE_FULL) {

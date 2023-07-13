@@ -77,7 +77,12 @@ static uint8_t state;
 #define STATE_CONNECTED       3
 #define STATE_SUBSCRIBED      4
 #define STATE_DISCONNECTED    5
-
+/*---------------------------------------------------------------------------*/
+/* PUBLISH/SUBSCRIBE MESSAGE TEMPLATES */
+#define NODE_TYPE "heart"
+#define TOPIC_ID_CONFIG "id_config"
+#define TOPIC_SENSOR_DATA "heart_sensor"
+#define PUBLISH_MSG_TEMPLATE "pet:%d;freq:%d"
 /*---------------------------------------------------------------------------*/
 PROCESS_NAME(mqtt_client_process);
 AUTOSTART_PROCESSES(&mqtt_client_process);
@@ -117,9 +122,9 @@ mqtt_status_t status;
 char broker_address[CONFIG_IP_ADDR_STR_LEN];
 
 /*---------------------------------------------------------------------------*/
-PROCESS(mqtt_client_process, "MQTT Client-heartbeat");
+PROCESS(mqtt_client_process, "MQTT Client heartbeat sensor");
 
-static int heartbeat = 100; //weight of food inside the container
+static int heartbeat = 100;
 unsigned short tagID;
 static bool ready = false;
 
@@ -129,12 +134,14 @@ static bool ready = false;
 static void
 pub_handler(const char *topic, uint16_t topic_len, const uint8_t *chunk, uint16_t chunk_len){
   printf("Pub Handler: topic='%s' (len=%u), chunk_len=%u\n", topic, topic_len, chunk_len);
-  if(strcmp(topic, "id_Config") == 0)
+  if(strcmp(topic, TOPIC_ID_CONFIG) == 0)
+
+    // TODO GET ID
     {
     tagID = (const unsigned short*) chunk;
-    if(containerID>0)
+    if(tagID>0)
         {
-        mqtt_unsubscribe(&conn, NULL, "id_Config");
+        mqtt_unsubscribe(&conn, NULL, TOPIC_ID_CONFIG);
         strcpy(sub_topic,"controller_Heartbeat");
         mqtt_subscribe(&conn, NULL, sub_topic, MQTT_QOS_LEVEL_0);
         }
@@ -155,7 +162,7 @@ pub_handler(const char *topic, uint16_t topic_len, const uint8_t *chunk, uint16_
     }
   }
   else {
-    LOG_ERR("Node " + containerID + ": Topic not valid!\n");
+    LOG_ERR("Node " + tagID + ": Topic not valid!\n");
   }
 }
 /*---------------------------------------------------------------------------*/
@@ -259,7 +266,7 @@ PROCESS_THREAD(mqtt_client_process, ev, data)
 
 		  if(state==STATE_CONNECTED){
 			  // Subscribe to a topic
-			  strcpy(sub_topic,"id_Config");
+			  strcpy(sub_topic,TOPIC_ID_CONFIG);
 			  status = mqtt_subscribe(&conn, NULL, sub_topic, MQTT_QOS_LEVEL_0);
 			  printf("Subscribing!\n");
 			  if(status == MQTT_STATUS_OUT_QUEUE_FULL) {
@@ -272,12 +279,12 @@ PROCESS_THREAD(mqtt_client_process, ev, data)
       if(ready) {
           if(state == STATE_SUBSCRIBED){
             // Publish something
-            sprintf(pub_topic, "%s", "heartbeat");
+            sprintf(pub_topic, "%s", TOPIC_SENSOR_DATA;
             int var_heartbeat = (int) random_rand() % 150;
             heartbeat = var_heartbeat + 40 ;
             LOG_INFO("New values: %d\n", heartbeat);
             rgb_led_set(RGB_LED_GREEN);
-            sprintf(app_buffer, "{\"SensorID\": %d, \"Heartbeat\": %d}", tagID,heartbeat);
+            sprintf(app_buffer, PUBLISH_MSG_TEMPLATE, tagID,heartbeat);
 
             mqtt_publish(&conn, NULL, pub_topic, (uint8_t *)app_buffer, strlen(app_buffer), MQTT_QOS_LEVEL_0, MQTT_RETAIN_OFF);
           } else if ( state == STATE_DISCONNECTED ){

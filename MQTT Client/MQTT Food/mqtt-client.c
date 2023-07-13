@@ -77,7 +77,13 @@ static uint8_t state;
 #define STATE_CONNECTED       3
 #define STATE_SUBSCRIBED      4
 #define STATE_DISCONNECTED    5
-
+/*---------------------------------------------------------------------------*/
+/* PUBLISH/SUBSCRIBE MESSAGE TEMPLATES */
+#define NODE_TYPE "food"
+#define TOPIC_ID_CONFIG "id_config"
+#define TOPIC_SENSOR_DATA "food_sensor"
+#define PUBLISH_MSG_TEMPLATE "bowl:%d;food-level:%d"
+#define TOPIC_ACTUATOR "food_actuator"
 /*---------------------------------------------------------------------------*/
 PROCESS_NAME(mqtt_client_process);
 AUTOSTART_PROCESSES(&mqtt_client_process);
@@ -118,7 +124,7 @@ mqtt_status_t status;
 char broker_address[CONFIG_IP_ADDR_STR_LEN];
 
 /*---------------------------------------------------------------------------*/
-PROCESS(mqtt_client_process, "MQTT Client-food");
+PROCESS(mqtt_client_process, "MQTT Client food sensor");
 
 static int foodLevel = 50; //weight of food inside the container
 static bool filling = false; // actuator status detected on the container
@@ -132,17 +138,17 @@ static int meal_charge = 100
 static void
 pub_handler(const char *topic, uint16_t topic_len, const uint8_t *chunk, uint16_t chunk_len){
   printf("Pub Handler: topic='%s' (len=%u), chunk_len=%u\n", topic, topic_len, chunk_len);
-  if(strcmp(topic, "id_Config") == 0)
+  if(strcmp(topic,TOPIC_ID_CONFIG) == 0)
     {
     containerID = (const unsigned short*) chunk;
     if(containerID>0)
         {
-        mqtt_unsubscribe(&conn, NULL, "id_Config");
-        strcpy(sub_topic,"actuator_food_refiller");
+        mqtt_unsubscribe(&conn, NULL,TOPIC_ID_CONFIG);
+        strcpy(sub_topic,TOPIC_ACTUATOR);
         mqtt_subscribe(&conn, NULL, sub_topic, MQTT_QOS_LEVEL_0);
         }
     }
-  else if(strcmp(topic, "actuator_food_refiller") == 0)
+  else if(strcmp(topic, TOPIC_ACTUATOR) == 0)
   {
     if(containerID != 0)
     {
@@ -280,7 +286,8 @@ PROCESS_THREAD(mqtt_client_process, ev, data)
 		  
 		  if(state==STATE_CONNECTED){
 			  // Subscribe to a topic
-			  strcpy(sub_topic,"id_Config");
+			  // TODO ID CONFIG
+			  strcpy(sub_topic,TOPIC_ID_CONFIG);
 			  status = mqtt_subscribe(&conn, NULL, sub_topic, MQTT_QOS_LEVEL_0);
 			  printf("Subscribing!\n");
 			  if(status == MQTT_STATUS_OUT_QUEUE_FULL) {
@@ -293,14 +300,14 @@ PROCESS_THREAD(mqtt_client_process, ev, data)
  
       if(state == STATE_SUBSCRIBED && ready){
         // Publish something
-        sprintf(pub_topic, "%s", "food");
+        sprintf(pub_topic, "%s",TOPIC_SENSOR_DATA);
 
         if(filling) {
           foodLevel += meal_charge;
         }
         LOG_INFO("New values: %d\n", foodLevel);
         rgb_led_set(RGB_LED_GREEN);
-        sprintf(app_buffer, "{\"Bowl\": %d, \"foodLevel\": %d}", containerID,foodLevel);
+        sprintf(app_buffer, PUBLISH_MSG_TEMPLATE, containerID,foodLevel);
         
         mqtt_publish(&conn, NULL, pub_topic, (uint8_t *)app_buffer,
         strlen(app_buffer), MQTT_QOS_LEVEL_0, MQTT_RETAIN_OFF);
