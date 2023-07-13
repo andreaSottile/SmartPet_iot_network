@@ -46,7 +46,7 @@
 #include <string.h>
 #include <strings.h>
 /*---------------------------------------------------------------------------*/
-#define LOG_MODULE "mqtt-client-food"
+#define LOG_MODULE "mqtt-client-hatch"
 #ifdef MQTT_CLIENT_CONF_LOG_LEVEL
 #define LOG_LEVEL MQTT_CLIENT_CONF_LOG_LEVEL
 #else
@@ -61,11 +61,14 @@ static const char *broker_ip = MQTT_CLIENT_BROKER_IP_ADDR;
 
 // Default config values
 #define DEFAULT_BROKER_PORT         1883
-#define DEFAULT_PUBLISH_INTERVAL    (5 * CLOCK_SECOND)
-#define EATING_RATE    (14 * CLOCK_SECOND)
+#define DEFAULT_SCAN_INTERVAL    (1 * CLOCK_SECOND)
+#define DEFAULT_PET_BEHAVIOR_INTERVAL    (2 * CLOCK_SECOND)
 
-
-
+/*---------------------------------------------------------------------------*/
+/* Sensor can detect pet: it can be inside, outside, or out of detection */
+#define TRIGGER_INSIDE 1
+#define TRIGGER_OUTSIDE 2
+#define TRIGGER_NONE 0
 
 /*---------------------------------------------------------------------------*/
 /* Various states */
@@ -99,8 +102,8 @@ static char sub_topic[BUFFER_SIZE];
 
 // Periodic timer to check the state of the MQTT client
 #define STATE_MACHINE_PERIODIC     (CLOCK_SECOND >> 1)
-static struct etimer periodic_timer;
-static struct etimer meal_timer; //Pet behaviour simulation timer
+static struct etimer sensor_timer;
+static struct etimer pet_timer; //Pet behaviour simulation timer
 
 /*---------------------------------------------------------------------------*/
 /*
@@ -118,52 +121,37 @@ mqtt_status_t status;
 char broker_address[CONFIG_IP_ADDR_STR_LEN];
 
 /*---------------------------------------------------------------------------*/
-PROCESS(mqtt_client_process, "MQTT Client-food");
+PROCESS(mqtt_client_process, "MQTT Client-hatch");
 
-static int foodLevel = 50; //weight of food inside the container
-static bool filling = false; // actuator status detected on the container
-static bool eating = false; //Pet behaviour simulation status
-unsigned short containerID = 0;
+unsigned short hatchId;
 static bool ready = false;
-static int meal_size = 30;
-static int meal_charge = 100
+static bool hatch_open = false;
+unsigned short int currentPetLocation = TRIGGER_NONE;
+unsigned short int lastPetLocation = TRIGGER_NONE;
+int pet_behavior_wait;
 
 /*---------------------------------------------------------------------------*/
 static void
 pub_handler(const char *topic, uint16_t topic_len, const uint8_t *chunk, uint16_t chunk_len){
   printf("Pub Handler: topic='%s' (len=%u), chunk_len=%u\n", topic, topic_len, chunk_len);
-  if(strcmp(topic, "id_Config") == 0)
-    {
-    containerID = (const unsigned short*) chunk;
-    if(containerID>0)
-        {
-        mqtt_unsubscribe(&conn, NULL, "id_Config");
-        strcpy(sub_topic,"actuator_food_refiller");
-        mqtt_subscribe(&conn, NULL, sub_topic, MQTT_QOS_LEVEL_0);
-        }
-    }
-  else if(strcmp(topic, "actuator_food_refiller") == 0)
-  {
-    if(containerID != 0)
-    {
-        printf("Received Food Actuator command\n");
-        if(strcmp((const char*) chunk, containerID + "_start") == 0) {
+  if(strcmp(topic, "actuator_hatch") == 0) {
+    printf("Received Hatch Actuator command\n");
+    if(strcmp((const char*) chunk, "start") == 0) {
         LOG_INFO("Starting sensor\n");
         ready = true;
         rgb_led_set(RGB_LED_GREEN);
-        }
-        else if(strcmp((const char*) chunk,containerID +  "_filling") == 0) {
-        LOG_INFO("Bowl %d refilling started \n",containerID);
-        filling = true;
-        }
-        else if(strcmp((const char*) chunk,containerID +  "_stop") == 0)  {
-        LOG_INFO("Bowl %d  refilling stopped \n",containerID);
-        filling = false;
-        }
+    }
+    else if(strcmp((const char*) chunk, hatchId +  "_close") == 0) {
+      LOG_INFO("Hatch %d closing \n",hatchId);
+      open = false;
+    }
+    else if(strcmp((const char*) chunk, hatchId +  "_open") == 0)  {
+      LOG_INFO(("Hatch %d opening \n", hatchId);
+      open = true;
     }
   }
   else {
-    LOG_ERR("Node " + containerID + ": Topic not valid!\n");
+    LOG_ERR("Node " + hatchId + ": Topic not valid!\n");
   }
 }
 /*---------------------------------------------------------------------------*/
@@ -222,20 +210,35 @@ static bool have_connectivity(void)
   return true;
 }
 
-void meal_time(int &foodLevel)
+void trigger_sensor(int sensor_data)
 {
-foodLevel -= meal_size;
-if(foodLevel<0)
-    foodLevel=0;
+    if (sensor_data != lastPetLocation) {
+        if (ready) {
+            if(state == STATE_SUBSCRIBED){
+                // Publish something
+                sprintf(pub_topic, "%s", "hatch");
+
+                sprintf(app_buffer, "{\"Hatch\": %d, \"foodLevel\": %d}", hatchId,sensor_data);
+
+                mqtt_publish(&conn, NULL, pub_topic, (uint8_t *)app_buffer, strlen(app_buffer), MQTT_QOS_LEVEL_0, MQTT_RETAIN_OFF);
+              } else if ( state == STATE_DISCONNECTED ){
+                LOG_ERR("Disconnected from MQTT broker\n");
+                ready = false;
+                rgb_led_set(RGB_LED_RED);
+                // Recover from error
+                state = STATE_INIT;
+              }
+            }
+        }
+    }
+    lastPetLocation = sensor_data;
 }
 
 
 /*---------------------------------------------------------------------------*/
 PROCESS_THREAD(mqtt_client_process, ev, data)
 {
-
   PROCESS_BEGIN();
-
 
   printf("MQTT Client Process\n");
 
@@ -251,68 +254,62 @@ PROCESS_THREAD(mqtt_client_process, ev, data)
   state=STATE_INIT;
 				    
   // Initialize periodic timer to check the status 
-  etimer_set(&periodic_timer, DEFAULT_PUBLISH_INTERVAL);
-  etimer_set(&meal_timer, EATING_RATE);
+  etimer_set(&pet_timer, DEFAULT_PET_BEHAVIOR_INTERVAL);
+  etimer_set(&sensor_timer, DEFAULT_SCAN_INTERVAL);
   rgb_led_set(RGB_LED_RED);
   /* Main loop */
   while(1) {
 
-    PROCESS_YIELD();
-    if(etimer_expired(&meal_timer)
-    {
-     meal_time(*foodLevel);
-     etimer_reset(&meal_timer);
-    }
+      PROCESS_YIELD();
 
-    if((ev == PROCESS_EVENT_TIMER && data == &periodic_timer) || ev == PROCESS_EVENT_POLL){
-			  			  
-		  if(state==STATE_INIT && have_connectivity()){
-				 state = STATE_NET_OK;
-		  } 
-		  
-		  if(state == STATE_NET_OK){
-			  // Connect to MQTT server
-			  printf("Connecting!\n");
-			  memcpy(broker_address, broker_ip, strlen(broker_ip));
-			  mqtt_connect(&conn, broker_address, DEFAULT_BROKER_PORT, (DEFAULT_PUBLISH_INTERVAL * 3) / CLOCK_SECOND, MQTT_CLEAN_SESSION_ON);
-			  state = STATE_CONNECTING;
-		  }
-		  
-		  if(state==STATE_CONNECTED){
-			  // Subscribe to a topic
-			  strcpy(sub_topic,"id_Config");
-			  status = mqtt_subscribe(&conn, NULL, sub_topic, MQTT_QOS_LEVEL_0);
-			  printf("Subscribing!\n");
-			  if(status == MQTT_STATUS_OUT_QUEUE_FULL) {
-				LOG_ERR("Tried to subscribe but command queue was full!\n");
-				PROCESS_EXIT();
-			  }
+      if(etimer_expired(&pet_timer) {
+          // simulate pet behaviour
+            if (pet_behavior_wait == 0) {
+                // random counter for movement
+                pet_behavior_wait = 1 + (int) random_rand() % 30;
+                // random position (it teleports? it's fine for a simulation)
+                currentPetLocation = (random_rand() % 3)
+            }
+            else
+                pet_behavior_wait--;
+            // reset timer
+            retimer_reset(&pet_timer);
+      }
 
-			  state = STATE_SUBSCRIBED;
-		  }
- 
-      if(state == STATE_SUBSCRIBED && ready){
-        // Publish something
-        sprintf(pub_topic, "%s", "food");
+      if(state==STATE_INIT && have_connectivity()){
+             state = STATE_NET_OK;
+      }
 
-        if(filling) {
-          foodLevel += meal_charge;
-        }
-        LOG_INFO("New values: %d\n", foodLevel);
-        rgb_led_set(RGB_LED_GREEN);
-        sprintf(app_buffer, "{\"Bowl\": %d, \"foodLevel\": %d}", containerID,foodLevel);
-        
-        mqtt_publish(&conn, NULL, pub_topic, (uint8_t *)app_buffer,
-        strlen(app_buffer), MQTT_QOS_LEVEL_0, MQTT_RETAIN_OFF);
-      } else if ( state == STATE_DISCONNECTED ){
+      if(state == STATE_NET_OK){
+          // Connect to MQTT server
+          printf("Connecting!\n");
+          memcpy(broker_address, broker_ip, strlen(broker_ip));
+          mqtt_connect(&conn, broker_address, DEFAULT_BROKER_PORT, (DEFAULT_PUBLISH_INTERVAL * 3) / CLOCK_SECOND, MQTT_CLEAN_SESSION_ON);
+          state = STATE_CONNECTING;
+      }
+
+      if(state==STATE_CONNECTED){
+          // Subscribe to a topic
+          strcpy(sub_topic,"hatch");
+          status = mqtt_subscribe(&conn, NULL, sub_topic, MQTT_QOS_LEVEL_0);
+          printf("Subscribing!\n");
+          if(status == MQTT_STATUS_OUT_QUEUE_FULL) {
+            LOG_ERR("Tried to subscribe but command queue was full!\n");
+            PROCESS_EXIT();
+          }
+
+          state = STATE_SUBSCRIBED;
+      }
+
+      if ( state == STATE_DISCONNECTED ){
         LOG_ERR("Disconnected from MQTT broker\n");
         ready = false;
         rgb_led_set(RGB_LED_RED);
         // Recover from error
         state = STATE_INIT;
       }
-	etimer_set(&periodic_timer, DEFAULT_PUBLISH_INTERVAL);
-    }
+
+
   }
   PROCESS_END();
 }

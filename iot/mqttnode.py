@@ -3,7 +3,6 @@ import paho.mqtt.client as mqtt
 from iot.data_manager import collect_data
 
 
-
 def receive(self, topic, msg):
     # receive msg
 
@@ -16,19 +15,18 @@ def receive(self, topic, msg):
     # eventually, perform actions triggered by messages
     # if rec_msg_code == 1:
 
-    if str(rec_msg_code) == "open_trapdoor":
-        #globalStatus.setStatusValve(1)
-        self.client.publish("actuator_trapdoor", rec_msg_target + "open")
-    elif str(rec_msg_code) == "closed_trapdoor":
-        #globalStatus.setStatusValve(0)
-        self.client.publish("actuator_trapdoor", rec_msg_target + "closed")
+    if str(rec_msg_code) == "open_hatch":
+        # globalStatus.setStatusValve(1)
+        self.client.publish("actuator_hatch", rec_msg_target + "_open")
+    elif str(rec_msg_code) == "closed_hatch":
+        # globalStatus.setStatusValve(0)
+        self.client.publish("actuator_hatch", rec_msg_target + "_close")
     elif str(rec_msg_code) == "start_refill":
-        #globalStatus.setStatusValve(1)
-        self.client.publish("actuator_foodRefiller", rec_msg_target + "filling")
+        # globalStatus.setStatusValve(1)
+        self.client.publish("actuator_food_refiller", rec_msg_target + "_filling")
     elif str(rec_msg_code) == "stop_refill":
-        #globalStatus.setStatusValve(0)
-        self.client.publish("actuator_foodRefiller", rec_msg_target + "stop")
-
+        # globalStatus.setStatusValve(0)
+        self.client.publish("actuator_food_refiller", rec_msg_target + "_stop")
 
 
 class MqttNode:
@@ -66,10 +64,10 @@ class MqttNode:
             receive("food", msg.payload)
         if msg.topic == "heartbeat":
             receive("heartbeat", msg.payload)
-        if msg.topic == "trapdoor":
-            receive("trapdoor", msg.payload)
+        if msg.topic == "hatch":
+            receive("hatch", msg.payload)
 
     def on_connect(self):
         self.client.subscribe("food")
         self.client.subscribe("heartbeat")
-        self.client.subscribe("trapdoor")
+        self.client.subscribe("hatch")

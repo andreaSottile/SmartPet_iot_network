@@ -269,24 +269,24 @@ PROCESS_THREAD(mqtt_client_process, ev, data)
 
 			  state = STATE_SUBSCRIBED;
 		  }
+      if(ready) {
+          if(state == STATE_SUBSCRIBED){
+            // Publish something
+            sprintf(pub_topic, "%s", "heartbeat");
+            int var_heartbeat = (int) random_rand() % 150;
+            heartbeat = var_heartbeat + 40 ;
+            LOG_INFO("New values: %d\n", heartbeat);
+            rgb_led_set(RGB_LED_GREEN);
+            sprintf(app_buffer, "{\"SensorID\": %d, \"Heartbeat\": %d}", tagID,heartbeat);
 
-      if(state == STATE_SUBSCRIBED && ready){
-        // Publish something
-        sprintf(pub_topic, "%s", "status_Heartbeat");
-        int var_heartbeat = (int) random_rand() % 150;
-        heartbeat = var_heartbeat + 40 ;
-        LOG_INFO("New values: %d\n", heartbeat);
-        rgb_led_set(RGB_LED_GREEN);
-        sprintf(app_buffer, "{\"SensorID\": %d, \"Heartbeat\": %d}", tagID,heartbeat);
-
-        mqtt_publish(&conn, NULL, pub_topic, (uint8_t *)app_buffer,
-        strlen(app_buffer), MQTT_QOS_LEVEL_0, MQTT_RETAIN_OFF);
-      } else if ( state == STATE_DISCONNECTED ){
-        LOG_ERR("Disconnected from MQTT broker\n");
-        ready = false;
-        rgb_led_set(RGB_LED_RED);
-        // Recover from error
-        state = STATE_INIT;
+            mqtt_publish(&conn, NULL, pub_topic, (uint8_t *)app_buffer, strlen(app_buffer), MQTT_QOS_LEVEL_0, MQTT_RETAIN_OFF);
+          } else if ( state == STATE_DISCONNECTED ){
+            LOG_ERR("Disconnected from MQTT broker\n");
+            ready = false;
+            rgb_led_set(RGB_LED_RED);
+            // Recover from error
+            state = STATE_INIT;
+          }
       }
 	etimer_set(&periodic_timer, DEFAULT_PUBLISH_INTERVAL);
     }

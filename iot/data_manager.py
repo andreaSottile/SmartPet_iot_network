@@ -1,11 +1,11 @@
-from Network_Controller.models import Food, Heartbeat, Trapdoor
+from Network_Controller.models import Food, Heartbeat, Hatch
 
 
 # MSG TEMPLATE:
 # { type:[Food, Heartbeat, Trapdoor] config:[false,true] arguments:{a:1 b:2 c:3} }
 
 
-def decode_message(type, raw_msg):
+def decode_message(type_msg, raw_msg):
     """
     Reads a json (obtained from a remote message) and decodes it based on the type;
     the output is ready to be saved in a new database row.
@@ -14,17 +14,13 @@ def decode_message(type, raw_msg):
     param raw_msg: a json element like { lvl:a , time:b, id:c }
     :return: content of the message
     """
-
-    if type == "food":
-        msg = raw_msg["lvl"], raw_msg["time"], raw_msg["cid"]
-        return msg
-    if type == "heartbeat":
-        msg = raw_msg["freq"], raw_msg["time"], raw_msg["pid"]
-        return msg
-    if type == "trapdoor":
-        msg = raw_msg["dir"], raw_msg["time"], raw_msg["wid"]
-        return msg
-    return "error"
+    if type_msg == "food":
+        return raw_msg["lvl"], raw_msg["time"], raw_msg["cid"]
+    if type_msg == "heartbeat":
+        return raw_msg["freq"], raw_msg["time"], raw_msg["pid"]
+    if type_msg == "hatch":
+        return raw_msg["dir"], raw_msg["time"], raw_msg["wid"]
+    return "error", "error", "error"
 
     #   if t == "food":
     #       msg = raw_msg.arguments.lvlmax, raw_msg.arguments.lvlmin, raw_msg.arguments.lvlth, raw_msg.arguments.cid
@@ -37,36 +33,34 @@ def decode_message(type, raw_msg):
     #       return "config_trapdoor", msg
 
 
-def save_food(msg_content):
+def save_food(food_level, time, cid):
     """
     Saves a new tuple in the food table
 
     param msg_content: a tuple containing food_level,timestamp,containerId
     """
-    containerId, food_level, time = decode_message(msg_content)
-    f = Food(lvl=food_level, time=time, containerID=containerId)
+
+    f = Food(lvl=food_level, time=time, containerID=cid)
     f.save()
 
 
-def save_heartbeat(msg_content):
+def save_heartbeat(frequency, time, pid):
     """
     Saves a new tuple in the heartbeat table
 
     param msg_content: a tuple containing frequency,timestamp,petId
     """
-    frequency, time, petId = decode_message(msg_content)
-    hb = Heartbeat(frequency=frequency, time=time, petID=petId)
+    hb = Heartbeat(frequency=frequency, time=time, petID=pid)
     hb.save()
 
 
-def save_trapdoor(msg_content):
+def save_hatch(direction, time, wid):
     """
     Saves a new tuple in the trapdoors table
 
     param msg_content: a tuple containing direction,timestamp,trapdoorId
     """
-    direction, time, trapdoorId = decode_message(msg_content)
-    w = Trapdoor(direction_Trigger=direction, time=time, trapdoorId=trapdoorId)
+    w = Hatch(direction_Trigger=direction, time=time, trapdoorId=wid)
     w.save()
 
 
@@ -91,17 +85,17 @@ def check_food_level(cid):
     # check food level against requirements
 
     # if below required level
-        # action: refill target bowl
-        # return "start_refill", cid
+    # action: refill target bowl
+    # return "start_refill", cid
 
     # if above max level
-        # return "stop_refill", cid
+    # return "stop_refill", cid
 
     # else, no action to do
     return 0, 0
 
 
-def check_trapdoor(direction, trapdoorId):
+def check_hatch(direction, hatchId):
     """
       Detected pet nearby a trapdoor; check if it's allowed to open it; notify the trapdoor which behavior to apply
 
@@ -122,8 +116,8 @@ def check_heartbeat(petId):
 
       :return: 0 if everything is ok
       """
-    #if value out of safe range
-        # show alert on client app
+    # if value out of safe range
+    # show alert on client app
     # value is safe
     return 0, 0
 
@@ -140,16 +134,17 @@ def collect_data(msg_type, msg_raw):
     other codes: more actions to be performed (topic to publish on)
     target: content of the message to be published
     """
-    msg_content = decode_message(msg_type, msg_raw)
-    if msg_content == "error":
+    arg1, arg2, target_id = decode_message(msg_type, msg_raw)
+    if target_id == "error":
         display_error("Received MQTT message with no type")
         return 0, 0
-    if msg_type == "food":
-        save_food(msg_content)
-        return check_food_level(msg_content.containerId)
+
+    if msg_type == "hatch":
+        save_food(arg1, arg2, target_id)
+        return check_food_level(target_id)
     if msg_type == "heartbeat":
-        save_heartbeat(msg_content)
-        return check_heartbeat(msg_content.petId)
-    if msg_type == "trapdoor":
-        save_trapdoor(msg_content)
-        return check_trapdoor(msg_content.direction, msg_content.trapdoorId)
+        save_heartbeat(arg1, arg2, target_id)
+        return check_heartbeat(target_id)
+    if msg_type == "hatch":
+        save_hatch(arg1, arg2, target_id)
+        return check_hatch(direction=arg1, hatchId=target_id)
