@@ -1,32 +1,41 @@
 import paho.mqtt.client as mqtt
 
-from iot.data_manager import collect_data
+from iot.data_manager import collect_data, register
+from iot.pubsubconfig import *
 
 
-def receive(self, topic, msg):
-    # receive msg
+def receive(node, topic, msg):
+    # receive msg from sensor
+    if topic in [TOPIC_SENSOR_HATCH, TOPIC_SENSOR_HEARTBEAT, TOPIC_SENSOR_FOOD]:
+        # read content, save in DB if necessary
+        rec_msg_code, rec_msg_target = collect_data(topic, msg)
 
-    # read content, save in DB if necessary
-    rec_msg_code, rec_msg_target = collect_data(topic, msg)
+        # switch rec_msg_code:
+        if rec_msg_code == 0:  # nothing to do after saving msg in database
+            return
+        # eventually, perform actions triggered by messages
+        # if rec_msg_code == 1:
 
-    # switch rec_msg_code:
-    if rec_msg_code == 0:  # nothing to do after saving msg in database
-        return
-    # eventually, perform actions triggered by messages
-    # if rec_msg_code == 1:
+        if str(rec_msg_code) == COMMAND_OPEN_HATCH:
+            # globalStatus.setStatusValve(1)
+            node.client.publish(TOPIC_ACTUATOR_HATCH, rec_msg_target + " open")
+        elif str(rec_msg_code) == COMMAND_CLOSE_HATCH:
+            # globalStatus.setStatusValve(0)
+            node.client.publish(TOPIC_ACTUATOR_HATCH, rec_msg_target + " close")
+        elif str(rec_msg_code) == COMMAND_REFILL_START_FOOD:
+            # globalStatus.setStatusValve(1)
+            node.client.publish(TOPIC_ACTUATOR_FOOD, rec_msg_target + " filling")
+        elif str(rec_msg_code) == COMMAND_REFILL_STOP_FOOD:
+            # globalStatus.setStatusValve(0)
+            node.client.publish(TOPIC_ACTUATOR_FOOD, rec_msg_target + " stop")
+    else:
+        # this is never happening, since i subscribed only topics i can handle
+        print("Received message from unexpected topic")
 
-    if str(rec_msg_code) == "open_hatch":
-        # globalStatus.setStatusValve(1)
-        self.client.publish("actuator_hatch", rec_msg_target + "_open")
-    elif str(rec_msg_code) == "closed_hatch":
-        # globalStatus.setStatusValve(0)
-        self.client.publish("actuator_hatch", rec_msg_target + "_close")
-    elif str(rec_msg_code) == "start_refill":
-        # globalStatus.setStatusValve(1)
-        self.client.publish("actuator_food_refiller", rec_msg_target + "_filling")
-    elif str(rec_msg_code) == "stop_refill":
-        # globalStatus.setStatusValve(0)
-        self.client.publish("actuator_food_refiller", rec_msg_target + "_stop")
+
+def negotiate_id(node, id_proposed, node_type):
+    result_msg = register(id_proposed, node_type)
+    node.client.publish(TOPIC_ID_CONFIG, result_msg)
 
 
 class MqttNode:
@@ -60,14 +69,22 @@ class MqttNode:
         self.client.disconnect()
 
     def on_message(self, msg):
-        if msg.topic == "food":
-            receive("food", msg.payload)
-        if msg.topic == "heartbeat":
-            receive("heartbeat", msg.payload)
-        if msg.topic == "hatch":
-            receive("hatch", msg.payload)
+
+        if msg.topic == TOPIC_ID_CONFIG:
+            # msg payload is defined as: "node_type node_id action"
+            msg_fields = str(msg.payload).split(" ")
+
+            if msg_fields == "awakens":
+                # new node has connected, waiting for IP
+                negotiate_id(self, id_proposed=msg_fields[1], node_type=msg_fields[0])
+            # remote nodes can only publish "awakens" action.
+            # this thread (controller) is the only one able to publish other actions
+        else:
+            # digest message from sensors
+            receive(self, msg.topic, msg.payload)
 
     def on_connect(self):
-        self.client.subscribe("food")
-        self.client.subscribe("heartbeat")
-        self.client.subscribe("hatch")
+        self.client.subscribe(TOPIC_SENSOR_HATCH)
+        self.client.subscribe(TOPIC_SENSOR_HEARTBEAT)
+        self.client.subscribe(TOPIC_SENSOR_FOOD)
+        self.client.subscribe(TOPIC_ID_CONFIG)

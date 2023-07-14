@@ -1,8 +1,15 @@
-from Network_Controller.models import Food, Heartbeat, Hatch
-
-
+from Network_Controller.models import Food, Heartbeat, Hatch, LiveClients
+import time
 # MSG TEMPLATE:
 # { type:[Food, Heartbeat, Trapdoor] config:[false,true] arguments:{a:1 b:2 c:3} }
+from iot.pubsubconfig import TOPIC_SENSOR_FOOD, TOPIC_SENSOR_HEARTBEAT, TOPIC_SENSOR_HATCH
+
+
+def timestamp():
+    """
+    #return current timestamp
+    """
+    return time.time()
 
 
 def decode_message(type_msg, raw_msg):
@@ -14,23 +21,14 @@ def decode_message(type_msg, raw_msg):
     param raw_msg: a json element like { lvl:a , time:b, id:c }
     :return: content of the message
     """
-    if type_msg == "food":
+    if type_msg == TOPIC_SENSOR_FOOD:
         return raw_msg["lvl"], raw_msg["time"], raw_msg["cid"]
-    if type_msg == "heartbeat":
+    if type_msg == TOPIC_SENSOR_HEARTBEAT:
         return raw_msg["freq"], raw_msg["time"], raw_msg["pid"]
-    if type_msg == "hatch":
+    if type_msg == TOPIC_SENSOR_HATCH:
         return raw_msg["dir"], raw_msg["time"], raw_msg["wid"]
+    # this is never happening, since i collect only sensor data
     return "error", "error", "error"
-
-    #   if t == "food":
-    #       msg = raw_msg.arguments.lvlmax, raw_msg.arguments.lvlmin, raw_msg.arguments.lvlth, raw_msg.arguments.cid
-    #       return "config_food", msg
-    #   if t == "heartbeat":
-    #       msg = raw_msg.arguments.freqhigh, raw_msg.arguments.freqlow, raw_msg.arguments.pid
-    #       return "config_heartbeat", msg
-    #   if t == "trapdoor":
-    #       msg = raw_msg.arguments.unlocked, raw_msg.arguments.wid
-    #       return "config_trapdoor", msg
 
 
 def save_food(food_level, time, cid):
@@ -122,29 +120,42 @@ def check_heartbeat(petId):
     return 0, 0
 
 
-def collect_data(msg_type, msg_raw):
+def collect_data(msg_topic, msg_raw):
     """
     Called when a new message is received;
     it reads the message, saves it if necessary, and eventually perform control actions
 
-    param type: a string that also is a topic ["food","heartbeat","trapdoor"]
+    param topic: a string that also is a topic ["food","heartbeat","trapdoor"]
     param raw_msg: a msg received in mqtt
     :return: (code,target)
     code 0: no further actions are necessary
     other codes: more actions to be performed (topic to publish on)
     target: content of the message to be published
     """
-    arg1, arg2, target_id = decode_message(msg_type, msg_raw)
+    arg1, arg2, target_id = decode_message(msg_topic, msg_raw)
     if target_id == "error":
         display_error("Received MQTT message with no type")
         return 0, 0
 
-    if msg_type == "hatch":
+    if msg_topic == TOPIC_SENSOR_FOOD:
         save_food(arg1, arg2, target_id)
         return check_food_level(target_id)
-    if msg_type == "heartbeat":
+    if msg_topic == TOPIC_SENSOR_HEARTBEAT:
         save_heartbeat(arg1, arg2, target_id)
         return check_heartbeat(target_id)
-    if msg_type == "hatch":
+    if msg_topic == TOPIC_SENSOR_HATCH:
         save_hatch(arg1, arg2, target_id)
         return check_hatch(direction=arg1, hatchId=target_id)
+
+
+def register(candidate_id, node_type):
+    duplicate = LiveClients.objects.filter(nodeId=candidate_id).exists()
+    if duplicate:
+        # rejected candidate_id
+        return str(node_type) + " " + str(candidate_id) + " denied"
+    else:
+        # not a duplicate: register new node
+        now = timestamp()
+        live = LiveClients(nodeId=candidate_id, node_type=node_type, isActuator=False, lastInteraction=now)
+        live.save()
+        return str(node_type) + " " + str(candidate_id) + " approved"

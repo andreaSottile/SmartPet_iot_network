@@ -50,3 +50,23 @@ class Hatch(models.Model):
 class HatchConfig(models.Model):
     hatchId = models.CharField(max_length=100)
     allowOpen = models.BooleanField(default=False)
+
+
+class LiveClients(models.Model):
+    nodeId = models.IntegerField()
+    unknown = 0
+    food = 1
+    heartbeat = 2
+    hatch = 3
+    NODE_TYPES = (
+        (unknown, 'unknown'),
+        (food, 'food'),
+        (heartbeat, 'heartbeat'),
+        (hatch, 'hatch')
+    )
+    nodeType = models.CharField(max_length=10,
+                                choices=NODE_TYPES,
+                                default=unknown
+                                )
+    isActuator = models.BooleanField(default=False)
+    lastInteraction = models.DateTimeField()
