@@ -61,6 +61,7 @@ static const char *broker_ip = MQTT_CLIENT_BROKER_IP_ADDR;
 
 // Default config values
 #define DEFAULT_BROKER_PORT         1883
+#define DEFAULT_PERIODIC_TIMER_INTERVAL    (1 * CLOCK_SECOND)
 #define DEFAULT_SCAN_INTERVAL    (1 * CLOCK_SECOND)
 #define DEFAULT_PET_BEHAVIOR_INTERVAL    (2 * CLOCK_SECOND)
 
@@ -88,6 +89,7 @@ static uint8_t boot;
 #define BOOT_ID_DENIED        3
 #define BOOT_COMPLETED        4
 #define BOOT_FAILED           5
+#define BOOT_WAITING_FOR_ANS  6
 /*---------------------------------------------------------------------------*/
 /* PUBLISH/SUBSCRIBE MESSAGE TEMPLATES */
 #define NODE_TYPE "heart"
@@ -118,7 +120,7 @@ static char sub_topic[BUFFER_SIZE];
 #define STATE_MACHINE_PERIODIC     (CLOCK_SECOND >> 1)
 static struct etimer sensor_timer;
 static struct etimer pet_timer; //Pet behaviour simulation timer
-
+static struct etimer periodic_timer;
 /*---------------------------------------------------------------------------*/
 /*
  * The main MQTT buffers.
@@ -363,12 +365,26 @@ PROCESS_THREAD(mqtt_client_process, ev, data)
          boot = BOOT_ID_NEGOTIATION;
       }
 
-      // TODO evitare che questa spammi messaggi
       if (boot == BOOT_ID_NEGOTIATION) {
+
          // id negotiation
          sprintf(app_buffer, NODE_TYPE+" "+hatchId+" awakens");
          mqtt_publish(&conn, NULL, TOPIC_ID_CONFIG, (uint8_t *)app_buffer, strlen(app_buffer), MQTT_QOS_LEVEL_0, MQTT_RETAIN_OFF);
+
+         // timer for waiting an answer
+         etimer_set(&periodic_timer, DEFAULT_PERIODIC_TIMER_INTERVAL);
+         boot = BOOT_WAITING_FOR_ANS;
       }
+      if (etimer_expired(&periodic_timer)){
+         if ( boot == BOOT_WAITING_FOR_ANS ) {
+            // no answer received from Id negotiation
+            boot = BOOT_ID_NEGOTIATION
+         }
+         else{
+            etimer_stop(&periodic_timer);
+         }
+      }
+
       if ( state == STATE_DISCONNECTED ){
         LOG_ERR("Disconnected from MQTT broker\n");
         boot = BOOT_FAILED;
