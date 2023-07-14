@@ -1,6 +1,6 @@
 import threading
 
-from iot.data_manager import collect_data
+from iot.data_manager import collect_data, flush_outdated_data
 
 # from coapthon.server.coap import CoAP
 # from mqttNetwork.mqqt_collector_bath_float import MqttClientBathFloat
@@ -21,6 +21,9 @@ def boot():
     global mqtt_thread
     global coap_listener
     global coap_thread
+    print("cleaning database")
+    flush_outdated_data()
+
     print("network starting up")
 
     mqtt_thread = threading.Thread(target=mqtt_listener.task, args=(target_host_mqtt, target_port_mqtt), kwargs={})

@@ -1,8 +1,8 @@
-from Network_Controller.models import Food, Heartbeat, Hatch, LiveClients
+from Network_Controller.models import *
 import time
 # MSG TEMPLATE:
 # { type:[Food, Heartbeat, Trapdoor] config:[false,true] arguments:{a:1 b:2 c:3} }
-from iot.pubsubconfig import TOPIC_SENSOR_FOOD, TOPIC_SENSOR_HEARTBEAT, TOPIC_SENSOR_HATCH
+from iot.pubsubconfig import *
 
 
 def timestamp():
@@ -18,51 +18,75 @@ def decode_message(type_msg, raw_msg):
     the output is ready to be saved in a new database row.
 
     param type: a string that also is a topic ["food","heartbeat","trapdoor"]
-    param raw_msg: a json element like { lvl:a , time:b, id:c }
+    param raw_msg: check pubsubconfig.py to see how message are written
     :return: content of the message
     """
-    if type_msg == TOPIC_SENSOR_FOOD:
-        return raw_msg["lvl"], raw_msg["time"], raw_msg["cid"]
-    if type_msg == TOPIC_SENSOR_HEARTBEAT:
-        return raw_msg["freq"], raw_msg["time"], raw_msg["pid"]
-    if type_msg == TOPIC_SENSOR_HATCH:
-        return raw_msg["dir"], raw_msg["time"], raw_msg["wid"]
-    # this is never happening, since i collect only sensor data
-    return "error", "error", "error"
+    try:
+        digested_msg = raw_msg.split(";")
+        node_id = (digested_msg[0].split(":"))[1]
+        value = (digested_msg[1].split(":"))[1]
+        if type_msg in [TOPIC_SENSOR_HATCH, TOPIC_SENSOR_HEARTBEAT, TOPIC_SENSOR_FOOD]:
+            return value, node_id
+        # this is never happening, since i collect only sensor data
+        else:
+            return "error", "error"
+    except IndexError:
+        return "message not respecting format", type_msg
 
 
-def save_food(food_level, time, cid):
+def save_food(food_level, cid):
     """
     Saves a new tuple in the food table
 
-    param msg_content: a tuple containing food_level,timestamp,containerId
+    param food_level: content of the bowl received
+    param cid: id of the food bowl
     """
-
-    f = Food(lvl=food_level, time=time, containerID=cid)
+    now = timestamp()
+    f = Food(lvl=food_level, time=now, containerID=cid)
     f.save()
+    try:
+        node = LiveClients.objects.get(nodeId=cid, nodeType="food")
+        node.lastInteraction = now
+    except LiveClients.DoesNotExist:
+        print("Received Food message from unregistered client " + str(cid))
 
 
-def save_heartbeat(frequency, time, pid):
+def save_heartbeat(frequency, pid):
     """
     Saves a new tuple in the heartbeat table
 
-    param msg_content: a tuple containing frequency,timestamp,petId
+    param frequency: latest heartbeat frequency received
+    param pid: id of the pet tag
     """
-    hb = Heartbeat(frequency=frequency, time=time, petID=pid)
+    now = timestamp()
+    hb = Heartbeat(frequency=frequency, time=now, petID=pid)
     hb.save()
+    try:
+        node = LiveClients.objects.get(nodeId=pid, nodeType="heartbeat")
+        node.lastInteraction = now
+    except LiveClients.DoesNotExist:
+        print("Received Heartbeat message from unregistered client " + str(pid))
 
 
-def save_hatch(direction, time, wid):
+def save_hatch(direction, wid):
     """
-    Saves a new tuple in the trapdoors table
+    Saves a new tuple in the hatches table
 
-    param msg_content: a tuple containing direction,timestamp,trapdoorId
+    param direction: side of the hatch triggered
+    param wid: id of the hatch
     """
-    w = Hatch(direction_Trigger=direction, time=time, trapdoorId=wid)
+
+    now = timestamp()
+    w = Hatch(direction_Trigger=direction, time=now, hatchId=wid)
     w.save()
+    try:
+        node = LiveClients.objects.get(nodeId=wid, nodeType="heartbeat")
+        node.lastInteraction = now
+    except LiveClients.DoesNotExist:
+        print("Received Heartbeat message from unregistered client " + str(wid))
 
 
-def display_error(msg_content):
+def display_alert(msg_content):
     """
     Displays a graphic notification when a simple error occurs
 
@@ -79,21 +103,42 @@ def check_food_level(cid):
      param cid: id of the food container to be checked
      :return: 0 if everything is ok; id of target bowl if refilling is necessary
      """
+    top, start, stop, bottom = FoodConfig.defaultMax, FoodConfig.defaultThresholdStart, FoodConfig.defaultThresholdStop, FoodConfig.defaultMin
+    try:
+        config = FoodConfig.objects.get(containerID=cid)
+        top = config.lvlMax
+        stop = config.lvlThresholdStop
+        start = config.lvlThresholdStart
+        bottom = config.lvlMin
+    except FoodConfig.DoesNotExist:
+        pass  # not a problem, using default config values
 
     # check food level against requirements
+    try:
+        latest = Food.objects.order_by("time")[:1].get()
 
-    # if below required level
-    # action: refill target bowl
-    # return "start_refill", cid
+        if latest.lvl > top:
+            display_alert("CRITICAL WARNING: food bowl " + str(cid) + " is overfilled")
+        if latest.lvl < bottom:
+            display_alert("CRITICAL WARNING: food bowl " + str(cid) + " must be checked")
 
-    # if above max level
-    # return "stop_refill", cid
+        # if below required level
+        if latest.lvl < start:
+            # action: refill target bowl
+            return COMMAND_REFILL_START_FOOD, cid
 
-    # else, no action to do
-    return 0, 0
+        # if above max level
+        if latest.lvl > stop:
+            return COMMAND_REFILL_STOP_FOOD, cid
+
+        # else, no action to do
+        return 0, 0
+
+    except Food.DoesNotExist:
+        return 0, 0  # no previous record detected, no action to perform
 
 
-def check_hatch(direction, hatchId):
+def check_hatch(hatch_id):
     """
       Detected pet nearby a trapdoor; check if it's allowed to open it; notify the trapdoor which behavior to apply
 
@@ -105,7 +150,25 @@ def check_hatch(direction, hatchId):
     # if allowed
     # return "open_trapdoor", trapdoorId
     # else
-    return 0
+    open_permission = HatchConfig.defaultAllow
+    try:
+        config = HatchConfig.objects.get(hatchId=hatch_id)
+        open_permission = config.allowOpen
+    except HatchConfig.DoesNotExist:
+        pass  # not a problem, using default config values
+
+    try:
+        latest = Hatch.objects.filter(hatchId=hatch_id).order_by("time")[:1].get()
+
+        if latest.direction_Trigger == Hatch.nothing:
+            return COMMAND_CLOSE_HATCH, hatch_id
+        else:
+            if open_permission:
+                # else, no action to do
+                return COMMAND_OPEN_HATCH, hatch_id
+
+    except Hatch.DoesNotExist:
+        return 0, 0  # no previous record detected, no action to perform
 
 
 def check_heartbeat(petId):
@@ -116,8 +179,33 @@ def check_heartbeat(petId):
       """
     # if value out of safe range
     # show alert on client app
-    # value is safe
-    return 0, 0
+
+    high, low = HeartBeatConfig.defaultHigh, HeartBeatConfig.defaultLow
+    try:
+        config = HeartBeatConfig.objects.get(petID=petId)
+        high, low = config.high_Threshold, config.low_Threshold
+    except HeartBeatConfig.DoesNotExist:
+        pass  # not a problem, using default config values
+
+    try:
+        latest = Heartbeat.objects.filter(petID=petId).order_by("time")[:1].get()
+
+        if latest.frequency > HeartBeatConfig.max:
+            display_alert("CRITICAL WARNING: frequency for " + str(petId) + " is above max possible value")
+        if latest.frequency < HeartBeatConfig.min:
+            display_alert("CRITICAL WARNING: frequency for " + str(petId) + " is below min possible value")
+
+        if latest.frequency < low:
+            display_alert("WARNING: pet " + str(petId) + "\'s frequency is lower than safe range")
+        if latest.frequency > high:
+            display_alert("WARNING: pet " + str(petId) + "\'s frequency is higher than safe range")
+
+            # else, value is safe
+
+        # no actuators for heartbeat
+        return 0, 0
+    except Hatch.DoesNotExist:
+        return 0, 0  # no previous record detected, no action to perform
 
 
 def collect_data(msg_topic, msg_raw):
@@ -132,20 +220,25 @@ def collect_data(msg_topic, msg_raw):
     other codes: more actions to be performed (topic to publish on)
     target: content of the message to be published
     """
-    arg1, arg2, target_id = decode_message(msg_topic, msg_raw)
+    arg, target_id = decode_message(msg_topic, msg_raw)
     if target_id == "error":
-        display_error("Received MQTT message with no type")
+        # message cannot be interpreted
+        display_alert("Received MQTT message with no type")
+        return 0, 0
+    if target_id == msg_topic:
+        # unexpected result from decode
+        display_alert(arg)
         return 0, 0
 
     if msg_topic == TOPIC_SENSOR_FOOD:
-        save_food(arg1, arg2, target_id)
+        save_food(arg, target_id)
         return check_food_level(target_id)
     if msg_topic == TOPIC_SENSOR_HEARTBEAT:
-        save_heartbeat(arg1, arg2, target_id)
+        save_heartbeat(arg, target_id)
         return check_heartbeat(target_id)
     if msg_topic == TOPIC_SENSOR_HATCH:
-        save_hatch(arg1, arg2, target_id)
-        return check_hatch(direction=arg1, hatchId=target_id)
+        save_hatch(arg, target_id)
+        return check_hatch(hatchId=target_id)
 
 
 def register(candidate_id, node_type):
@@ -159,3 +252,10 @@ def register(candidate_id, node_type):
         live = LiveClients(nodeId=candidate_id, node_type=node_type, isActuator=False, lastInteraction=now)
         live.save()
         return str(node_type) + " " + str(candidate_id) + " approved"
+
+
+def flush_outdated_data():
+    LiveClients.objects.all().delete()
+    HatchConfig.objects.all().delete()
+    FoodConfig.objects.all().delete()
+    HeartBeatConfig.objects.all().delete()
