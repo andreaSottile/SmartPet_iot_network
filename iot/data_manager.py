@@ -238,7 +238,7 @@ def collect_data(msg_topic, msg_raw):
         return check_heartbeat(target_id)
     if msg_topic == TOPIC_SENSOR_HATCH:
         save_hatch(arg, target_id)
-        return check_hatch(hatchId=target_id)
+        return check_hatch(target_id)
 
 
 def register(candidate_id, node_type):
