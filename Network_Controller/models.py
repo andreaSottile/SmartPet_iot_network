@@ -13,7 +13,7 @@ class FoodConfig(models.Model):
     containerID = models.CharField(max_length=100)
     lvlMax = models.IntegerField(default=1000)
     lvlThresholdStart = models.IntegerField(default=300)
-    lvlThresholdStop= models.IntegerField(default=700)
+    lvlThresholdStop = models.IntegerField(default=700)
     lvlMin = models.IntegerField(0)
     defaultMax = 1000
     defaultMin = 0
@@ -62,6 +62,7 @@ class HatchConfig(models.Model):
 
 class LiveClients(models.Model):
     nodeId = models.IntegerField()
+    nodeCoapName = models.CharField(max_length=16, default="")
     unknown = 0
     food = 1
     heartbeat = 2
