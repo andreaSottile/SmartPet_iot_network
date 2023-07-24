@@ -63,6 +63,7 @@ class HatchConfig(models.Model):
 class LiveClients(models.Model):
     nodeId = models.IntegerField()
     nodeCoapName = models.CharField(max_length=16, default="")
+    nodeCoapAddress = models.CharField(max_length=30, default="")
     unknown = 0
     food = 1
     heartbeat = 2
@@ -73,9 +74,14 @@ class LiveClients(models.Model):
         (heartbeat, 'heartbeat'),
         (hatch, 'hatch')
     )
+    isFree= models.BooleanField(default=True)
     nodeType = models.CharField(max_length=10,
                                 choices=NODE_TYPES,
                                 default=unknown
                                 )
     isActuator = models.BooleanField(default=False)
     lastInteraction = models.DateTimeField()
+
+class Pair(models.Model):
+    nodeIdMQTT = models.IntegerField()
+    nodeIdCOAP = models.IntegerField()

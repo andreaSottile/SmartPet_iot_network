@@ -1,8 +1,13 @@
 from Network_Controller.models import *
 import time
+
+from iot.network_manager import activateRefiller
 # MSG TEMPLATE:
 # { type:[Food, Heartbeat, Trapdoor] config:[false,true] arguments:{a:1 b:2 c:3} }
 from iot.pubsubconfig import *
+from coapthon.resources.resource import Resource
+from coapthon.messages.request import Request
+from coapthon.messages.response import Response
 
 
 def timestamp():
@@ -124,6 +129,11 @@ def check_food_level(cid):
 
         # if below required level
         if latest.lvl < start:
+            pairObject = Pair.objects.filter(nodeIdMQTT=cid).first()
+            if pairObject is not None:
+                pairActuator = pairObject.nodeIdCOAP
+                pairActuatorAddress = get_COAP_Address_from_ID(pairActuator)
+                success = activateRefiller(pairActuatorAddress)
             # action: refill target bowl
             return COMMAND_REFILL_START_FOOD, cid
 
@@ -240,8 +250,35 @@ def collect_data(msg_topic, msg_raw):
         save_hatch(arg, target_id)
         return check_hatch(target_id)
 
+def get_COAP_Address_from_ID(nodeID):
+    nodeCOAP= LiveClients.objects.filter(nodeId=nodeID).first()
+    if nodeCOAP is not None:
+        return nodeCOAP.nodeCoapAddress
+    else:
+        return 0
 
-def register(candidate_id, node_type):
+
+
+def lookForPartner(node_type, target):
+    if target == 'Sensor':
+        targetID = LiveClients.object.filter(node_type=node_type, isActuator=False, isFree= True).first()
+    elif target == 'Actuator':
+        targetID = LiveClients.object.filter(node_type=node_type, isActuator=True, isFree= True).first()
+    else:
+        return 0
+    if targetID is not None:
+        return targetID
+    else:
+        return 0
+
+def register_sensor(candidate_id, node_type):
+    '''
+    Called when a sensor try to register to Controller.
+    There is a check if the Client already exists.
+    :param candidate_id: ID proposed from the Sensor.
+    :param node_type: type of the sensor node.
+    :return: confirmation/reject message to sensor for that ID.
+    '''
     duplicate = LiveClients.objects.filter(nodeId=candidate_id).exists()
     if duplicate:
         # rejected candidate_id
@@ -249,10 +286,54 @@ def register(candidate_id, node_type):
     else:
         # not a duplicate: register new node
         now = timestamp()
-        live = LiveClients(nodeId=candidate_id, node_type=node_type, isActuator=False, lastInteraction=now)
-        live.save()
+        if(node_type == 'heartbeat'):
+            # Heartbeat Node doesn't have to be paired with actuators
+            live = LiveClients(nodeId=candidate_id, node_type=node_type,isFree=False, isActuator=False, lastInteraction=now)
+            live.save()
+        else:
+            # Food/Hatch cases
+            # Looking for an unpaired Actuator Node of the same type of the sensor
+            partnerID = lookForPartner(node_type, target="Actuator")
+            if partnerID > 0:
+                # Found unpaired actuator
+                pair = Pair(nodeIdMQTT=candidate_id, nodeIdCOAP=partnerID)
+                live = LiveClients(nodeId=candidate_id, node_type=node_type,isFree=False, isActuator=False, lastInteraction=now)
+                live.save()
+                pair.save()
+            else:
+                #  No compatible unpaired actuator
+                live = LiveClients(nodeId=candidate_id, node_type=node_type, isActuator=False, isFree=True, lastInteraction=now)
+                live.save()
         return str(node_type) + " " + str(candidate_id) + " approved"
 
+def register_actuator(candidate_id, node_type, node_address):
+    '''
+    Called when an actuator try to register to Controller.
+    There is a check if the Client already exists.
+    :param candidate_id: ID proposed from the Actuator.
+    :param node_type: type of the sensor node.
+    :return: confirmation/reject message to actuator for that ID.
+    '''
+    duplicate = LiveClients.objects.filter(nodeId=candidate_id).exists()
+    if duplicate:
+        # rejected candidate_id
+        return str(node_type) + " " + str(candidate_id) + " denied"
+    else:
+        # not a duplicate: register new node
+        now = timestamp()
+        # Looking for an unpaired Actuator Node of the same type of the sensor
+        partnerID = lookForPartner(node_type, target="Sensor")
+        if partnerID > 0:
+            # Found unpaired actuator
+            pair = Pair(nodeIdMQTT = candidate_id, nodeIdCOAP = partnerID)
+            live = LiveClients(nodeId=candidate_id, node_type=node_type, isFree=False, isActuator=True, nodeCoapAddress = node_address, lastInteraction=now)
+            live.save()
+            pair.save()
+        else:
+            #  No compatible unpaired actuator
+            live = LiveClients(nodeId=candidate_id, node_type=node_type, isActuator=True, isFree=True, nodeCoapAddress = node_address, lastInteraction=now)
+            live.save()
+        return str(node_type) + " " + str(candidate_id) + " approved"
 
 def flush_outdated_data():
     LiveClients.objects.all().delete()

@@ -1,6 +1,6 @@
 import paho.mqtt.client as mqtt
 
-from iot.data_manager import collect_data, register
+from iot.data_manager import collect_data, register_sensor
 from iot.pubsubconfig import *
 
 
@@ -34,7 +34,7 @@ def receive(node, topic, msg):
 
 
 def negotiate_id(node, id_proposed, node_type):
-    result_msg = register(id_proposed, node_type)
+    result_msg = register_sensor(id_proposed, node_type)
     node.client.publish(TOPIC_ID_CONFIG, result_msg)
 
 
