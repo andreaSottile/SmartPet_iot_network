@@ -1,18 +1,17 @@
+from iot.network_manager import *
+from iot.handler_HelperClient import coapConnectionHandler
+from iot.pubsubconfig import *
 from Network_Controller.models import *
 import time
 
-from iot.network_manager import activateRefiller
+
+
 # MSG TEMPLATE:
 # { type:[Food, Heartbeat, Trapdoor] config:[false,true] arguments:{a:1 b:2 c:3} }
-from iot.pubsubconfig import *
-from coapthon.resources.resource import Resource
-from coapthon.messages.request import Request
-from coapthon.messages.response import Response
-
 
 def timestamp():
     """
-    #return current timestamp
+    return current timestamp
     """
     return time.time()
 
@@ -22,7 +21,7 @@ def decode_message(type_msg, raw_msg):
     Reads a json (obtained from a remote message) and decodes it based on the type;
     the output is ready to be saved in a new database row.
 
-    param type: a string that also is a topic ["food","heartbeat","trapdoor"]
+    param type: a string that also is a topic ["food","heartbeat","hatch"]
     param raw_msg: check pubsubconfig.py to see how message are written
     :return: content of the message
     """
@@ -49,11 +48,7 @@ def save_food(food_level, cid):
     now = timestamp()
     f = Food(lvl=food_level, time=now, containerID=cid)
     f.save()
-    try:
-        node = LiveClients.objects.get(nodeId=cid, nodeType="food")
-        node.lastInteraction = now
-    except LiveClients.DoesNotExist:
-        print("Received Food message from unregistered client " + str(cid))
+    updateLastInteraction(cid)
 
 
 def save_heartbeat(frequency, pid):
@@ -66,11 +61,7 @@ def save_heartbeat(frequency, pid):
     now = timestamp()
     hb = Heartbeat(frequency=frequency, time=now, petID=pid)
     hb.save()
-    try:
-        node = LiveClients.objects.get(nodeId=pid, nodeType="heartbeat")
-        node.lastInteraction = now
-    except LiveClients.DoesNotExist:
-        print("Received Heartbeat message from unregistered client " + str(pid))
+    updateLastInteraction(pid)
 
 
 def save_hatch(direction, wid):
@@ -84,11 +75,7 @@ def save_hatch(direction, wid):
     now = timestamp()
     w = Hatch(direction_Trigger=direction, time=now, hatchId=wid)
     w.save()
-    try:
-        node = LiveClients.objects.get(nodeId=wid, nodeType="heartbeat")
-        node.lastInteraction = now
-    except LiveClients.DoesNotExist:
-        print("Received Heartbeat message from unregistered client " + str(wid))
+    updateLastInteraction(wid)
 
 
 def display_alert(msg_content):
@@ -132,13 +119,20 @@ def check_food_level(cid):
             pairObject = Pair.objects.filter(nodeIdMQTT=cid).first()
             if pairObject is not None:
                 pairActuator = pairObject.nodeIdCOAP
-                pairActuatorAddress = get_COAP_Address_from_ID(pairActuator)
-                success = activateRefiller(pairActuatorAddress)
+                done = activateRefiller(pairActuator)
+                if done:
+                    updateLastInteraction(pairActuator)
             # action: refill target bowl
             return COMMAND_REFILL_START_FOOD, cid
 
         # if above max level
         if latest.lvl > stop:
+            pairObject = Pair.objects.filter(nodeIdMQTT=cid).first()
+            if pairObject is not None:
+                pairActuator = pairObject.nodeIdCOAP
+                done = closeRefiller(pairActuator)
+                if done:
+                    updateLastInteraction(pairActuator)
             return COMMAND_REFILL_STOP_FOOD, cid
 
         # else, no action to do
@@ -150,15 +144,15 @@ def check_food_level(cid):
 
 def check_hatch(hatch_id):
     """
-      Detected pet nearby a trapdoor; check if it's allowed to open it; notify the trapdoor which behavior to apply
+      Detected pet nearby a hatch; check if it's allowed to open it; notify the hatch which behavior to apply
 
       param direction: check if pet is leaving or entering
-      param trapdoorId: trapdoor where pet is detected
+      param hatchId: hatch where pet is detected
       :return:  0 if everything is ok
       """
-    # check if trapdoor is allowed to open in the current direction
+    # check if hatch is allowed to open in the current direction
     # if allowed
-    # return "open_trapdoor", trapdoorId
+    # return "open_hatch", hatchId
     # else
     open_permission = HatchConfig.defaultAllow
     try:
@@ -171,9 +165,21 @@ def check_hatch(hatch_id):
         latest = Hatch.objects.filter(hatchId=hatch_id).order_by("time")[:1].get()
 
         if latest.direction_Trigger == Hatch.nothing:
+            pairObject = Pair.objects.filter(nodeIdMQTT=hatch_id).first()
+            if pairObject is not None:
+                pairActuator = pairObject.nodeIdCOAP
+                done = closeHatch(pairActuator)
+                if done:
+                    updateLastInteraction(pairActuator)
             return COMMAND_CLOSE_HATCH, hatch_id
         else:
             if open_permission:
+                pairObject = Pair.objects.filter(nodeIdMQTT=hatch_id).first()
+                if pairObject is not None:
+                    pairActuator = pairObject.nodeIdCOAP
+                    done = openHatch(pairActuator)
+                    if done:
+                        updateLastInteraction(pairActuator)
                 # else, no action to do
                 return COMMAND_OPEN_HATCH, hatch_id
 
@@ -214,7 +220,7 @@ def check_heartbeat(petId):
 
         # no actuators for heartbeat
         return 0, 0
-    except Hatch.DoesNotExist:
+    except Heartbeat.DoesNotExist:
         return 0, 0  # no previous record detected, no action to perform
 
 
@@ -223,8 +229,8 @@ def collect_data(msg_topic, msg_raw):
     Called when a new message is received;
     it reads the message, saves it if necessary, and eventually perform control actions
 
-    param topic: a string that also is a topic ["food","heartbeat","trapdoor"]
-    param raw_msg: a msg received in mqtt
+    param msg_topic: a string that also is a topic ["food","heartbeat","hatch"]
+    param msg_raw: a msg received in mqtt
     :return: (code,target)
     code 0: no further actions are necessary
     other codes: more actions to be performed (topic to publish on)
@@ -236,10 +242,11 @@ def collect_data(msg_topic, msg_raw):
         display_alert("Received MQTT message with no type")
         return 0, 0
     if target_id == msg_topic:
-        # unexpected result from decode
+        # unexpected result from decode (for the handling of an Exception in decode function)
         display_alert(arg)
         return 0, 0
 
+    updateLastInteraction(target_id)
     if msg_topic == TOPIC_SENSOR_FOOD:
         save_food(arg, target_id)
         return check_food_level(target_id)
@@ -250,26 +257,41 @@ def collect_data(msg_topic, msg_raw):
         save_hatch(arg, target_id)
         return check_hatch(target_id)
 
+
 def get_COAP_Address_from_ID(nodeID):
-    nodeCOAP= LiveClients.objects.filter(nodeId=nodeID).first()
+    nodeCOAP = LiveClients.objects.filter(nodeId=nodeID).first()
     if nodeCOAP is not None:
         return nodeCOAP.nodeCoapAddress
     else:
         return 0
 
 
+def get_LiveClient_from_ID(nodeID):
+    return LiveClients.object.filter(nodeId=nodeID).first()
+
+
+def updateLastInteraction(nodeId):
+    now = timestamp()
+    client = get_LiveClient_from_ID(nodeId)
+    try:
+        client.lastInteraction = now
+        client.save()
+    except LiveClients.DoesNotExist:
+        print("Trying to update an unknown node: " + str(nodeId))
+
 
 def lookForPartner(node_type, target):
     if target == 'Sensor':
-        targetID = LiveClients.object.filter(node_type=node_type, isActuator=False, isFree= True).first()
+        targetID = LiveClients.object.filter(node_type=node_type, isActuator=False, isFree=True).first()
     elif target == 'Actuator':
-        targetID = LiveClients.object.filter(node_type=node_type, isActuator=True, isFree= True).first()
+        targetID = LiveClients.object.filter(node_type=node_type, isActuator=True, isFree=True).first()
     else:
         return 0
     if targetID is not None:
         return targetID
     else:
         return 0
+
 
 def register_sensor(candidate_id, node_type):
     '''
@@ -286,9 +308,10 @@ def register_sensor(candidate_id, node_type):
     else:
         # not a duplicate: register new node
         now = timestamp()
-        if(node_type == 'heartbeat'):
+        if (node_type == 'heartbeat'):
             # Heartbeat Node doesn't have to be paired with actuators
-            live = LiveClients(nodeId=candidate_id, node_type=node_type,isFree=False, isActuator=False, lastInteraction=now)
+            live = LiveClients(nodeId=candidate_id, node_type=node_type, isFree=False, isActuator=False,
+                               lastInteraction=now)
             live.save()
         else:
             # Food/Hatch cases
@@ -297,14 +320,17 @@ def register_sensor(candidate_id, node_type):
             if partnerID > 0:
                 # Found unpaired actuator
                 pair = Pair(nodeIdMQTT=candidate_id, nodeIdCOAP=partnerID)
-                live = LiveClients(nodeId=candidate_id, node_type=node_type,isFree=False, isActuator=False, lastInteraction=now)
+                live = LiveClients(nodeId=candidate_id, node_type=node_type, isFree=False, isActuator=False,
+                                   lastInteraction=now)
                 live.save()
                 pair.save()
             else:
                 #  No compatible unpaired actuator
-                live = LiveClients(nodeId=candidate_id, node_type=node_type, isActuator=False, isFree=True, lastInteraction=now)
+                live = LiveClients(nodeId=candidate_id, node_type=node_type, isActuator=False, isFree=True,
+                                   lastInteraction=now)
                 live.save()
         return str(node_type) + " " + str(candidate_id) + " approved"
+
 
 def register_actuator(candidate_id, node_type, node_address):
     '''
@@ -325,15 +351,19 @@ def register_actuator(candidate_id, node_type, node_address):
         partnerID = lookForPartner(node_type, target="Sensor")
         if partnerID > 0:
             # Found unpaired actuator
-            pair = Pair(nodeIdMQTT = candidate_id, nodeIdCOAP = partnerID)
-            live = LiveClients(nodeId=candidate_id, node_type=node_type, isFree=False, isActuator=True, nodeCoapAddress = node_address, lastInteraction=now)
+            pair = Pair(nodeIdMQTT=candidate_id, nodeIdCOAP=partnerID)
+            live = LiveClients(nodeId=candidate_id, node_type=node_type, isFree=False, isActuator=True,
+                               nodeCoapAddress=node_address, lastInteraction=now)
             live.save()
             pair.save()
         else:
             #  No compatible unpaired actuator
-            live = LiveClients(nodeId=candidate_id, node_type=node_type, isActuator=True, isFree=True, nodeCoapAddress = node_address, lastInteraction=now)
+            live = LiveClients(nodeId=candidate_id, node_type=node_type, isActuator=True, isFree=True,
+                               nodeCoapAddress=node_address, lastInteraction=now)
             live.save()
+        coapConnectionHandler.createConnection(candidate_id, node_address)
         return str(node_type) + " " + str(candidate_id) + " approved"
+
 
 def flush_outdated_data():
     LiveClients.objects.all().delete()
