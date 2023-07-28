@@ -4,8 +4,6 @@ from iot.pubsubconfig import *
 from Network_Controller.models import *
 import time
 
-
-
 # MSG TEMPLATE:
 # { type:[Food, Heartbeat, Trapdoor] config:[false,true] arguments:{a:1 b:2 c:3} }
 
