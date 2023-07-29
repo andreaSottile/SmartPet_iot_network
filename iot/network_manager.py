@@ -13,10 +13,11 @@ target_host_mqtt = "127.0.0.1"
 target_port_mqtt = 1883
 mqtt_listener = MqttNode()
 mqtt_thread = None
-coap_listener = 0 # CoapNode()
+coap_listener = 0  # CoapNode()
 coap_thread = None
 COAP_Server_ip = "0.0.0.0"
 COAP_Server_port = 5683
+
 
 def boot():
     global mqtt_listener
@@ -33,6 +34,7 @@ def boot():
     coap_server_thread = threading.Thread(target=coap_server.listen, args=(), kwargs={})
     coap_server_thread.start()
 
+
 def activateRefiller(actuatorId):
     clientCOAP = coapConnectionHandler.getConnectionHelperClient(actuatorId)
     # Send a POST request to actuator (THIS HAS NO EFFECT BESIDE THE OUTPUT LOG)
@@ -41,6 +43,7 @@ def activateRefiller(actuatorId):
         return 1
     else:
         return 0
+
 
 def closeRefiller(actuatorId):
     clientCOAP = coapConnectionHandler.getConnectionHelperClient(actuatorId)
@@ -51,6 +54,7 @@ def closeRefiller(actuatorId):
     else:
         return 0
 
+
 def closeHatch(actuatorId):
     clientCOAP = coapConnectionHandler.getConnectionHelperClient(actuatorId)
     # Send a POST request to actuator (THIS HAS NO EFFECT BESIDE THE OUTPUT LOG)
@@ -60,6 +64,7 @@ def closeHatch(actuatorId):
     else:
         return 0
 
+
 def openHatch(actuatorId):
     clientCOAP = coapConnectionHandler.getConnectionHelperClient(actuatorId)
     # Send a POST request to actuator (THIS HAS NO EFFECT BESIDE THE OUTPUT LOG)
@@ -68,6 +73,3 @@ def openHatch(actuatorId):
         return 1
     else:
         return 0
-
-
-
