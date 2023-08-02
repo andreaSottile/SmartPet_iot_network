@@ -31,7 +31,7 @@
 #include "contiki.h"
 #include "net/routing/routing.h"
 #include "mqtt.h"
-#include "dev/etc/rgb-led/rgb-led.h"
+#include "dev/leds/leds-example.h"
 #include "net/ipv6/uip.h"
 #include "net/ipv6/uip-icmp6.h"
 #include "net/ipv6/sicslowpan.h"
