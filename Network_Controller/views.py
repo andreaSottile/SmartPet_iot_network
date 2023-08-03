@@ -1,6 +1,8 @@
 from django.http import JsonResponse
 from django.shortcuts import render
-from models import *
+from django.views.decorators.csrf import csrf_exempt
+
+from Network_Controller.models import *
 from iot.network_manager import boot
 
 
@@ -9,8 +11,9 @@ def index(request):
     return render(request, "index.html", context)
 
 
+@csrf_exempt
 def network_start(request):
-    boot()
+    boot(request)
     context = {"status": "started"}
     return render(request, "network.html", context)
 
@@ -31,7 +34,7 @@ def real_time_hatch(request):
 
 
 def real_time_live_clients(request):
-    data = LiveClients.objects.order_by('-lastInteraction')[:100].values('nodeId', 'nodeCoapName', 'nodeCoapAddress',
-                                                                         'nodeType', 'isFree', 'isActuator',
-                                                                         'lastInteraction')
+    data = LiveClient.objects.order_by('-lastInteraction')[:100].values('nodeId', 'nodeCoapName', 'nodeCoapAddress',
+                                                                        'nodeType', 'isFree', 'isActuator',
+                                                                        'lastInteraction')
     return JsonResponse(list(data), safe=False)

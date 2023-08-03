@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 
-import getopt
-import sys
 from coapthon.server.coap import CoAP
 from coapthon.resources.resource import Resource
-from data_manager import *
+
+from iot.data_manager import register_actuator
+
 
 class ResExample(Resource):
 
@@ -13,16 +13,15 @@ class ResExample(Resource):
         self.payload = "Basic Resource"
 
     def render_GET(self, request):
-        digested_msg= request.payload.split("_")
+        digested_msg = request.payload.split("_")
         if digested_msg[0] == "food":
-            register_actuator(digested_msg[1], digested_msg[0],  request.source)
+            register_actuator(digested_msg[1], digested_msg[0], request.source)
         elif digested_msg[0] == "hatch":
-            register_actuator(digested_msg[1], digested_msg[0],  request.source)
+            register_actuator(digested_msg[1], digested_msg[0], request.source)
         return self
+
 
 class CoAPServer(CoAP):
     def __init__(self, host, port):
         CoAP.__init__(self, (host, port), False)
         self.add_resource("hello/", ResExample())
-
-

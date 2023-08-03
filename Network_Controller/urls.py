@@ -20,10 +20,10 @@ from . import views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path("", views.index, name="detail"),
-    path("network/", views.network_start, name="network"),
+    path('network/', views.network_start, name='network'),
     path('api/real-time-food/', views.real_time_food, name='real_time_food'),
     path('api/real-time-heartbeat/', views.real_time_heartbeat, name='real_time_heartbeat'),
     path('api/real-time-hatch/', views.real_time_hatch, name='real_time_hatch'),
     path('api/real-time-live-clients/', views.real_time_live_clients, name='real_time_live_clients'),
+    path('', views.index, name='index'),
 ]

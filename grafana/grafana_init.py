@@ -1,12 +1,10 @@
 import requests
-import subprocess
-
-# TODO:
 GRAFANA_API_KEY = 'grafana_api_key'
-GRAFANA_SERVER_URL = 'http://serverurl'
+GRAFANA_SERVER_URL = 'http://serverurl'  # TODO
 
 DJANGO_APP_NAME = 'Network_Controller'
 DJANGO_API_ENDPOINTS = {
+    # these URLs have been defined in urls.py
     'food': 'http://127.0.0.1:8000/api/real-time-food/',
     'heartbeat': 'http://127.0.0.1:8000/api/real-time-heartbeat/',
     'hatch': 'http://127.0.0.1:8000/api/real-time-hatch/',
@@ -14,9 +12,12 @@ DJANGO_API_ENDPOINTS = {
 }
 
 
-def create_grafana_data_source():
+def create_grafana_data_source(url, request):
+    global GRAFANA_SERVER_URL
+    GRAFANA_SERVER_URL = "http://" + url
+
     # Set up the data source configuration for Grafana
-    data_source = {
+    data_source_food = {
         "name": "Django Data Source",
         "type": "simple-json-datasource",
         "url": DJANGO_API_ENDPOINTS['food'],  # Using food API endpoint
@@ -31,7 +32,7 @@ def create_grafana_data_source():
         "Authorization": f"Bearer {GRAFANA_API_KEY}",
         "Content-Type": "application/json"
     }
-    response = requests.post(f"{GRAFANA_SERVER_URL}/api/datasources", json=data_source, headers=headers)
+    response = requests.post(DJANGO_API_ENDPOINTS['food'], json=data_source_food, headers=headers)
 
     if response.status_code == 200:
         print("Data source created successfully!")
@@ -39,7 +40,7 @@ def create_grafana_data_source():
         print("Failed to create data source:", response.json())
 
 
-def create_grafana_dashboard():
+def create_grafana_dashboard(request):
     # TODO: Grafana JSON here
     dashboard = {
         # dashboard JSON
@@ -50,24 +51,9 @@ def create_grafana_dashboard():
         "Authorization": f"Bearer {GRAFANA_API_KEY}",
         "Content-Type": "application/json"
     }
-    response = requests.post(f"{GRAFANA_SERVER_URL}/api/dashboards/db", json={"dashboard": dashboard}, headers=headers)
+    response = requests.post(DJANGO_API_ENDPOINTS['food'], json={"dashboard": dashboard}, headers=headers)
 
     if response.status_code == 200:
         print("Dashboard created successfully!")
     else:
         print("Failed to create dashboard:", response.json())
-
-
-def setup_django_app():
-    # Run Django management commands to set up the application
-    subprocess.run(["python", f"{DJANGO_APP_NAME}/manage.py", "makemigrations"])
-    subprocess.run(["python", f"{DJANGO_APP_NAME}/manage.py", "migrate"])
-
-
-if __name__ == "__main__":
-    # Create Grafana data source and dashboard
-    create_grafana_data_source()
-    create_grafana_dashboard()
-
-    # Invoke Django setup function
-    setup_django_app()

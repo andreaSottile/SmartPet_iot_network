@@ -1,8 +1,9 @@
-from iot.network_manager import *
-from iot.handler_HelperClient import coapConnectionHandler
-from iot.pubsubconfig import *
 from Network_Controller.models import *
+from iot.network_manager import *
+from iot.handler_HelperClient import createConnection
+from iot.pubsubconfig import *
 import time
+
 
 # MSG TEMPLATE:
 # { type:[Food, Heartbeat, Trapdoor] config:[false,true] arguments:{a:1 b:2 c:3} }
@@ -257,7 +258,7 @@ def collect_data(msg_topic, msg_raw):
 
 
 def get_COAP_Address_from_ID(nodeID):
-    nodeCOAP = LiveClients.objects.filter(nodeId=nodeID).first()
+    nodeCOAP = LiveClient.objects.filter(nodeId=nodeID).first()
     if nodeCOAP is not None:
         return nodeCOAP.nodeCoapAddress
     else:
@@ -265,7 +266,7 @@ def get_COAP_Address_from_ID(nodeID):
 
 
 def get_LiveClient_from_ID(nodeID):
-    return LiveClients.object.filter(nodeId=nodeID).first()
+    return LiveClient.objects.filter(nodeId=nodeID).first()
 
 
 def updateLastInteraction(nodeId):
@@ -274,15 +275,15 @@ def updateLastInteraction(nodeId):
     try:
         client.lastInteraction = now
         client.save()
-    except LiveClients.DoesNotExist:
+    except LiveClient.DoesNotExist:
         print("Trying to update an unknown node: " + str(nodeId))
 
 
 def lookForPartner(node_type, target):
     if target == 'Sensor':
-        targetID = LiveClients.object.filter(node_type=node_type, isActuator=False, isFree=True).first()
+        targetID = LiveClient.objects.filter(node_type=node_type, isActuator=False, isFree=True).first()
     elif target == 'Actuator':
-        targetID = LiveClients.object.filter(node_type=node_type, isActuator=True, isFree=True).first()
+        targetID = LiveClient.objects.filter(node_type=node_type, isActuator=True, isFree=True).first()
     else:
         return 0
     if targetID is not None:
@@ -299,17 +300,17 @@ def register_sensor(candidate_id, node_type):
     :param node_type: type of the sensor node.
     :return: confirmation/reject message to sensor for that ID.
     '''
-    duplicate = LiveClients.objects.filter(nodeId=candidate_id).exists()
+    duplicate = LiveClient.objects.filter(nodeId=candidate_id).exists()
     if duplicate:
         # rejected candidate_id
         return str(node_type) + " " + str(candidate_id) + " denied"
     else:
         # not a duplicate: register new node
         now = timestamp()
-        if (node_type == 'heartbeat'):
+        if node_type == 'heartbeat':
             # Heartbeat Node doesn't have to be paired with actuators
-            live = LiveClients(nodeId=candidate_id, node_type=node_type, isFree=False, isActuator=False,
-                               lastInteraction=now)
+            live = LiveClient(nodeId=candidate_id, node_type=node_type, isFree=False, isActuator=False,
+                              lastInteraction=now)
             live.save()
         else:
             # Food/Hatch cases
@@ -318,14 +319,14 @@ def register_sensor(candidate_id, node_type):
             if partnerID > 0:
                 # Found unpaired actuator
                 pair = Pair(nodeIdMQTT=candidate_id, nodeIdCOAP=partnerID)
-                live = LiveClients(nodeId=candidate_id, node_type=node_type, isFree=False, isActuator=False,
-                                   lastInteraction=now)
+                live = LiveClient(nodeId=candidate_id, node_type=node_type, isFree=False, isActuator=False,
+                                  lastInteraction=now)
                 live.save()
                 pair.save()
             else:
                 #  No compatible unpaired actuator
-                live = LiveClients(nodeId=candidate_id, node_type=node_type, isActuator=False, isFree=True,
-                                   lastInteraction=now)
+                live = LiveClient(nodeId=candidate_id, node_type=node_type, isActuator=False, isFree=True,
+                                  lastInteraction=now)
                 live.save()
         return str(node_type) + " " + str(candidate_id) + " approved"
 
@@ -336,9 +337,10 @@ def register_actuator(candidate_id, node_type, node_address):
     There is a check if the Client already exists.
     :param candidate_id: ID proposed from the Actuator.
     :param node_type: type of the sensor node.
+    :param node_address: string with the network address
     :return: confirmation/reject message to actuator for that ID.
     '''
-    duplicate = LiveClients.objects.filter(nodeId=candidate_id).exists()
+    duplicate = LiveClient.objects.filter(nodeId=candidate_id).exists()
     if duplicate:
         # rejected candidate_id
         return str(node_type) + " " + str(candidate_id) + " denied"
@@ -350,21 +352,25 @@ def register_actuator(candidate_id, node_type, node_address):
         if partnerID > 0:
             # Found unpaired actuator
             pair = Pair(nodeIdMQTT=candidate_id, nodeIdCOAP=partnerID)
-            live = LiveClients(nodeId=candidate_id, node_type=node_type, isFree=False, isActuator=True,
-                               nodeCoapAddress=node_address, lastInteraction=now)
+            live = LiveClient(nodeId=candidate_id, node_type=node_type, isFree=False, isActuator=True,
+                              nodeCoapAddress=node_address, lastInteraction=now)
             live.save()
             pair.save()
         else:
             #  No compatible unpaired actuator
-            live = LiveClients(nodeId=candidate_id, node_type=node_type, isActuator=True, isFree=True,
-                               nodeCoapAddress=node_address, lastInteraction=now)
+            live = LiveClient(nodeId=candidate_id, node_type=node_type, isActuator=True, isFree=True,
+                              nodeCoapAddress=node_address, lastInteraction=now)
             live.save()
-        coapConnectionHandler.createConnection(candidate_id, node_address)
+        createConnection(candidate_id, node_address)
         return str(node_type) + " " + str(candidate_id) + " approved"
 
 
 def flush_outdated_data():
-    LiveClients.objects.all().delete()
-    HatchConfig.objects.all().delete()
-    FoodConfig.objects.all().delete()
-    HeartBeatConfig.objects.all().delete()
+    if HatchConfig.objects.first() is not None:
+        HatchConfig.objects.all().delete()
+    if FoodConfig.objects.first() is not None:
+        FoodConfig.objects.all().delete()
+    if HeartBeatConfig.objects.first() is not None:
+        HeartBeatConfig.objects.all().delete()
+    if LiveClient.objects.first() is not None:
+        LiveClient.objects.all().delete()

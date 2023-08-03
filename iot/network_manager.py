@@ -1,13 +1,9 @@
 import threading
-
-from iot.data_manager import collect_data, flush_outdated_data
-
-# from coapthon.server.coap import CoAP
-# from mqttNetwork.mqqt_collector_bath_float import MqttClientBathFloat
-
+from grafana.grafana_init import *
+from iot.COAP_server import CoAPServer
+from iot.data_manager import flush_outdated_data
+from iot.handler_HelperClient import getConnectionHelperClient
 from iot.mqttnode import MqttNode
-from coapthon.client.helperclient import HelperClient
-from COAP_server import *
 
 target_host_mqtt = "127.0.0.1"
 target_port_mqtt = 1883
@@ -19,14 +15,17 @@ COAP_Server_ip = "0.0.0.0"
 COAP_Server_port = 5683
 
 
-def boot():
+def boot(req):
     global mqtt_listener
     global mqtt_thread
     print("cleaning database")
     flush_outdated_data()
 
-    print("network starting up")
+    print("Grafana starting up")
+    create_grafana_data_source(target_host_mqtt, req)
+    create_grafana_dashboard(req)
 
+    print("network starting up")
     mqtt_thread = threading.Thread(target=mqtt_listener.task, args=(target_host_mqtt, target_port_mqtt), kwargs={})
     mqtt_thread.start()
 
@@ -36,7 +35,7 @@ def boot():
 
 
 def activateRefiller(actuatorId):
-    clientCOAP = coapConnectionHandler.getConnectionHelperClient(actuatorId)
+    clientCOAP = getConnectionHelperClient()
     # Send a POST request to actuator (THIS HAS NO EFFECT BESIDE THE OUTPUT LOG)
     response = clientCOAP.post("food", "open" + actuatorId)
     if response.code == 67:
@@ -46,7 +45,7 @@ def activateRefiller(actuatorId):
 
 
 def closeRefiller(actuatorId):
-    clientCOAP = coapConnectionHandler.getConnectionHelperClient(actuatorId)
+    clientCOAP = getConnectionHelperClient()
     # Send a POST request to actuator (THIS HAS NO EFFECT BESIDE THE OUTPUT LOG)
     response = clientCOAP.post("food", "close" + actuatorId)
     if response.code == 67:
@@ -56,7 +55,7 @@ def closeRefiller(actuatorId):
 
 
 def closeHatch(actuatorId):
-    clientCOAP = coapConnectionHandler.getConnectionHelperClient(actuatorId)
+    clientCOAP = getConnectionHelperClient()
     # Send a POST request to actuator (THIS HAS NO EFFECT BESIDE THE OUTPUT LOG)
     response = clientCOAP.post("hatch", "close" + actuatorId)
     if response.code == 67:
@@ -66,7 +65,7 @@ def closeHatch(actuatorId):
 
 
 def openHatch(actuatorId):
-    clientCOAP = coapConnectionHandler.getConnectionHelperClient(actuatorId)
+    clientCOAP = getConnectionHelperClient()
     # Send a POST request to actuator (THIS HAS NO EFFECT BESIDE THE OUTPUT LOG)
     response = clientCOAP.post("hatch", "open" + actuatorId)
     if response.code == 67:
