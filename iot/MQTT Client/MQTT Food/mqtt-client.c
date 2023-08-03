@@ -31,7 +31,7 @@
 #include "contiki.h"
 #include "net/routing/routing.h"
 #include "mqtt.h"
-#include "dev/rgb-led/rgb-led.h"
+#include "/home/osboxes/contiki-ng/arch/dev/rgb-led/rgb-led.h"
 #include "net/ipv6/uip.h"
 #include "net/ipv6/uip-icmp6.h"
 #include "net/ipv6/sicslowpan.h"
@@ -137,7 +137,6 @@ PROCESS(mqtt_client_process,
 
 static int foodLevel = 50; //weight of food inside the container
 static bool filling = false; // actuator status detected on the container
-static bool eating = false; //Pet behaviour simulation status
 unsigned short containerID = 0;
 static int meal_size = 30;
 static int meal_charge = 100;
@@ -276,8 +275,8 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
     while (1) {
 
         PROCESS_YIELD();
-        if (etimer_expired(&meal_timer) {
-            meal_time(*foodLevel);
+        if (etimer_expired(&meal_timer)) {
+            meal_time(&foodLevel);
             etimer_reset(&meal_timer);
         }
 
@@ -310,7 +309,7 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
             }
 
 
-            if ((boot = BOOT_COMPLETED) && (state == STATE_SUBSCRIBED) {
+            if ((boot = BOOT_COMPLETED) && (state == STATE_SUBSCRIBED) ){
     // Publish something
                 sprintf(pub_topic, "%s", TOPIC_SENSOR_DATA);
 
@@ -330,7 +329,7 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
             }
             if (boot == BOOT_ID_NEGOTIATION) {
     // id negotiation
-                sprintf(app_buffer, NODE_TYPE + " " + containerID + " awakens");
+                sprintf(app_buffer, "%s %d awakens", NODE_TYPE, containerID);
                 mqtt_publish(&conn, NULL, TOPIC_ID_CONFIG, (uint8_t *) app_buffer, strlen(app_buffer), MQTT_QOS_LEVEL_0,
                              MQTT_RETAIN_OFF);
             }
