@@ -31,7 +31,6 @@
 #include "contiki.h"
 #include "net/routing/routing.h"
 #include "mqtt.h"
-#include "/home/osboxes/contiki-ng/arch/dev/rgb-led/rgb-led.h"
 #include "net/ipv6/uip.h"
 #include "net/ipv6/uip-icmp6.h"
 #include "net/ipv6/sicslowpan.h"
@@ -45,6 +44,9 @@
 #include <time.h>
 #include <string.h>
 #include <strings.h>
+
+#include "dev/leds.h"
+#include "dev/rgb-led/rgb-led.h"
 /*---------------------------------------------------------------------------*/
 #define LOG_MODULE "mqtt-client-food"
 #ifdef MQTT_CLIENT_CONF_LOG_LEVEL
@@ -64,8 +66,30 @@ static const char *broker_ip = MQTT_CLIENT_BROKER_IP_ADDR;
 #define DEFAULT_PUBLISH_INTERVAL    (5 * CLOCK_SECOND)
 #define EATING_RATE    (14 * CLOCK_SECOND)
 
+/*---------------------------------------------------------------------------*/
+/* Led manipulation */
+#define RGB_LED_RED     1
+#define RGB_LED_GREEN   2
+#define RGB_LED_BLUE    4
+#define RGB_LED_MAGENTA (RGB_LED_RED | RGB_LED_BLUE)
+#define RGB_LED_YELLOW  (RGB_LED_RED | RGB_LED_GREEN)
+#define RGB_LED_CYAN    (RGB_LED_GREEN | RGB_LED_BLUE )
+#define RGB_LED_WHITE   (RGB_LED_RED | RGB_LED_GREEN | RGB_LED_BLUE)
 
+void rgb_led_off(void)
+{
+    leds_off(LEDS_ALL);
+}
+void rgb_led_set(uint8_t colour)
+{
+    leds_mask_t leds =
+            ((colour & RGB_LED_RED) ? LEDS_RED : LEDS_COLOUR_NONE) |
+            ((colour & RGB_LED_GREEN) ? LEDS_GREEN : LEDS_COLOUR_NONE) |
+            ((colour & RGB_LED_BLUE) ? LEDS_BLUE : LEDS_COLOUR_NONE);
 
+    leds_off(LEDS_ALL);
+    leds_on(leds);
+}
 
 /*---------------------------------------------------------------------------*/
 /* Various states */
