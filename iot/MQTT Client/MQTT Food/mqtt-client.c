@@ -95,7 +95,7 @@ void rgb_led_set(uint8_t colour)
 /* Various states */
 static uint8_t state;
 
-#define STATE_INIT              0
+#define STATE_INIT            0
 #define STATE_NET_OK          1
 #define STATE_CONNECTING      2
 #define STATE_CONNECTED       3
