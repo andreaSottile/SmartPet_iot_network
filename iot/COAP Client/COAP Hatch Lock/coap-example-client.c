@@ -43,7 +43,6 @@
 #include "dev/button-hal.h"
 
 /* Log configuration */
-#include "app_var.h"
 #include "coap-log.h"
 
 #include "dev/leds.h"
