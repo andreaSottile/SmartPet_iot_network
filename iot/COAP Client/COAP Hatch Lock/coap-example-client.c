@@ -136,8 +136,8 @@ PROCESS_THREAD(actuator_node, ev, data)
         LOG_INFO("--Node Registering--\n");
         }
     PROCESS_WAIT_EVENT();
-     
-    //TODO GESTIONE CLIENT
+
+    //WORK PHASE: there is no actuator in the simulation
   }
 
   PROCESS_END();
