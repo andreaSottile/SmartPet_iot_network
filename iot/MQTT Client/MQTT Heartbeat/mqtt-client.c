@@ -160,7 +160,7 @@ PROCESS(mqtt_client_process,
 "MQTT Client heartbeat sensor");
 
 static int heartbeat;
-unsigned short tagID;
+unsigned short tagId;
 
 /*---------------------------------------------------------------------------*/
 static void pub_handler(const char *topic, uint16_t topic_len, const uint8_t *chunk, uint16_t chunk_len) {
@@ -168,7 +168,7 @@ static void pub_handler(const char *topic, uint16_t topic_len, const uint8_t *ch
     char msg_template[128];
     if (strcmp(topic, TOPIC_ID_CONFIG) == 0) {
         // received answer during Id negotiation
-        snprintf(msg_template, sizeof(msg_template), "%s %d approved", NODE_TYPE, tagID);
+        snprintf(msg_template, sizeof(msg_template), "%s %d approved", NODE_TYPE, tagId);
         if (strcmp((const char *) chunk, msg_template) == 0) {
             // controlled accepted Id proposal
             mqtt_unsubscribe(&conn, NULL, TOPIC_ID_CONFIG);
@@ -176,7 +176,7 @@ static void pub_handler(const char *topic, uint16_t topic_len, const uint8_t *ch
             // it's not subscribed to anything, but the state is used for publishing things
             state = STATE_SUBSCRIBED;
         } else {
-            snprintf(msg_template, sizeof(msg_template), "%s %d denied", NODE_TYPE, tagID);
+            snprintf(msg_template, sizeof(msg_template), "%s %d denied", NODE_TYPE, tagId);
             if (strcmp((const char *) chunk, msg_template) == 0) {
                 // controlled rejected Id proposal
                 boot = BOOT_ID_DENIED;
@@ -291,10 +291,10 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
                     LOG_ERR("Tried to subscribe but command queue was full!\n");
                     PROCESS_EXIT();
                 }
-                tagID = 1 + (int) random_rand() % 100;
+                tagId = 1 + (int) random_rand() % 100;
                 boot = BOOT_ID_NEGOTIATION;
             }
-            if ((boot = BOOT_COMPLETED) && (state == STATE_SUBSCRIBED)) {
+            if ((boot == BOOT_COMPLETED) && (state == STATE_SUBSCRIBED)) {
                 // Publish periodic sensor data
 
                 // simulate random change in heartbeat
