@@ -342,7 +342,7 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
         }
 
         // hatch closing: wait for a delay after pet is detected
-        if (etimer_expired(&sensor_timer) {
+        if (etimer_expired(&sensor_timer)){
             if (currentPetLocation == TRIGGER_NONE) {
                 // close hatch only if pet is away
                 hatch_open = false;
@@ -353,7 +353,7 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
             }
         }
 
-        if (etimer_expired(&pet_timer) {
+        if (etimer_expired(&pet_timer)) {
             // simulate pet behaviour
             if (pet_behavior_wait == 0) {
                 // random counter for movement
