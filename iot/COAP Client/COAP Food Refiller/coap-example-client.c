@@ -60,7 +60,8 @@ char *service_url = "/hello";
 #define STATE_REGISTERING      1
 #define STATE_REGISTERED       2
 int status = 0;
-char *res_name
+int self_id;
+char *res_name;
 extern coap_resource_t res_status;
 /*---------------------------------------------------------------------------*/
 /* Led manipulation */
@@ -125,7 +126,7 @@ PROCESS_THREAD(actuator_node, ev, data) {
     while (1) {
         if(status == STATE_INIT){
             // In a real application, MAC address is to be used instead of random
-            possible_ID = 501 + (int) random_rand() % 500;
+            self_id = 501 + (int) random_rand() % 500;
             const char msg[] = "food_" + possible_ID;
             status = STATE_REGISTERING;
             coap_set_payload(request, (uint8_t *) msg, sizeof(msg) - 1);
