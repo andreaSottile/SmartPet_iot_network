@@ -333,7 +333,7 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
             }
 
 
-            if ((boot = BOOT_COMPLETED) && (state == STATE_SUBSCRIBED) ){
+            if ((boot == BOOT_COMPLETED) && (state == STATE_SUBSCRIBED) ){
     // Publish something
                 sprintf(pub_topic, "%s", TOPIC_SENSOR_DATA);
 
