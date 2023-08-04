@@ -315,7 +315,7 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
             }
             if (boot == BOOT_ID_NEGOTIATION) {
                 // id negotiation
-                sprintf(app_buffer, NODE_TYPE + " " + tagId + " awakens");
+                sprintf(app_buffer, "%s %d awakens",NODE_TYPE,tagId);
                 mqtt_publish(&conn, NULL, TOPIC_ID_CONFIG, (uint8_t *) app_buffer, strlen(app_buffer), MQTT_QOS_LEVEL_0,
                              MQTT_RETAIN_OFF);
             }
