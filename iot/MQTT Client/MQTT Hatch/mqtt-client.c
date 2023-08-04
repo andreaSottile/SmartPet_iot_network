@@ -101,7 +101,7 @@ void rgb_led_set(uint8_t colour) {
 /* Various states */
 static uint8_t state;
 
-#define STATE_INIT              0
+#define STATE_INIT            0
 #define STATE_NET_OK          1
 #define STATE_CONNECTING      2
 #define STATE_CONNECTED       3
@@ -110,7 +110,7 @@ static uint8_t state;
 
 static uint8_t boot;
 #define BOOT_NOT_STARTED      0
-#define BOOT_INIT          1
+#define BOOT_INIT             1
 #define BOOT_ID_NEGOTIATION   2
 #define BOOT_ID_DENIED        3
 #define BOOT_COMPLETED        4
@@ -118,7 +118,7 @@ static uint8_t boot;
 #define BOOT_WAITING_FOR_ANS  6
 /*---------------------------------------------------------------------------*/
 /* PUBLISH/SUBSCRIBE MESSAGE TEMPLATES */
-#define NODE_TYPE "heart"
+#define NODE_TYPE "hatch"
 #define TOPIC_ID_CONFIG "id_config"
 #define TOPIC_SENSOR_DATA "hatch_sensor"
 #define PUBLISH_MSG_TEMPLATE "hatch:%d;direction:%d"
@@ -175,7 +175,7 @@ int pet_behavior_wait;
 static void pub_handler(const char *topic, uint16_t topic_len, const uint8_t *chunk, uint16_t chunk_len) {
 
     char msg_template[128];
-    printf("Pub Handler: topic='%s' (len=%u), chunk_len=%u\n", topic, topic_len, chunk_len);
+    printf("Pub Handler: topic='%s' (len=%hu), chunk_len=%u\n", topic, topic_len, chunk_len);
 
     if (strcmp(topic, TOPIC_ID_CONFIG) == 0)
         // received answer during Id negotiation
@@ -269,9 +269,8 @@ static void mqtt_event(struct mqtt_connection *m, mqtt_event_t event, void *data
     }
 }
 
-static bool have_connectivity(void) {
-    if (uip_ds6_get_global(ADDR_PREFERRED) == NULL ||
-        uip_ds6_defrt_choose() == NULL) {
+static bool have_connectivity() {
+    if (uip_ds6_get_global(ADDR_PREFERRED) == NULL || uip_ds6_defrt_choose() == NULL) {
         return false;
     }
     return true;
@@ -360,7 +359,7 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
                 // random counter for movement
                 pet_behavior_wait = 1 + (int) random_rand() % 30;
                 // new random position (it teleports? it's fine for a simulation)
-                currentPetLocation = (random_rand() % 3)
+                currentPetLocation = (random_rand() % 3);
             } else
                 pet_behavior_wait--;
             // reset timer
@@ -401,9 +400,8 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
         if (boot == BOOT_ID_NEGOTIATION) {
 
             // id negotiation
-            sprintf(app_buffer, NODE_TYPE + " " + hatchId + " awakens");
-            mqtt_publish(&conn, NULL, TOPIC_ID_CONFIG, (uint8_t *) app_buffer, strlen(app_buffer),
-                         MQTT_QOS_LEVEL_0, MQTT_RETAIN_OFF);
+            sprintf(app_buffer, "%s %d awakens",NODE_TYPE,hatchId);
+            mqtt_publish(&conn, NULL, TOPIC_ID_CONFIG, (uint8_t *) app_buffer, strlen(app_buffer), MQTT_QOS_LEVEL_0, MQTT_RETAIN_OFF);
 
             // timer for waiting an answer
             etimer_set(&periodic_timer, DEFAULT_PERIODIC_TIMER_INTERVAL);
@@ -412,7 +410,7 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
         if (etimer_expired(&periodic_timer)) {
             if (boot == BOOT_WAITING_FOR_ANS) {
                 // no answer received from Id negotiation
-                boot = BOOT_ID_NEGOTIATION
+                boot = BOOT_ID_NEGOTIATION;
             } else {
                 etimer_stop(&periodic_timer);
             }
