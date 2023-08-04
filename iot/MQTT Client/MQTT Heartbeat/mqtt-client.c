@@ -172,17 +172,17 @@ static void pub_handler(const char *topic, uint16_t topic_len, const uint8_t *ch
   if (strcmp(topic, TOPIC_ID_CONFIG) == 0)
   {
       // received answer during Id negotiation
-      snprintf(msg_template, sizeof(msg_template), "%s %d approved", NODE_TYPE, containerID);
+      snprintf(msg_template, sizeof(msg_template), "%s %d approved", NODE_TYPE, tagID);
       if (strcmp((const char *) chunk, msg_template) == 0) {
         // controlled accepted Id proposal
          mqtt_unsubscribe(&conn, NULL,TOPIC_ID_CONFIG);
-         strcpy(sub_topic,TOPIC_ACTUATOR);
-         mqtt_subscribe(&conn, NULL, sub_topic, MQTT_QOS_LEVEL_0);
+
+        // it's not subscribed to anything, but the state is used for publishing things
          state = STATE_SUBSCRIBED;
       }
       else
       {
-        snprintf(msg_template, sizeof(msg_template), "%s %d denied", NODE_TYPE, containerID);
+        snprintf(msg_template, sizeof(msg_template), "%s %d denied", NODE_TYPE, tagID);
         if (strcmp((const char *) chunk, msg_template) == 0)
          {
          // controlled rejected Id proposal
