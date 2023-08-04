@@ -75,12 +75,11 @@ static const char *broker_ip = MQTT_CLIENT_BROKER_IP_ADDR;
 #define RGB_LED_CYAN    (RGB_LED_GREEN | RGB_LED_BLUE )
 #define RGB_LED_WHITE   (RGB_LED_RED | RGB_LED_GREEN | RGB_LED_BLUE)
 
-void rgb_led_off(void)
-{
+void rgb_led_off(void) {
     leds_off(LEDS_ALL);
 }
-void rgb_led_set(uint8_t colour)
-{
+
+void rgb_led_set(uint8_t colour) {
     leds_mask_t leds =
             ((colour & RGB_LED_RED) ? LEDS_RED : LEDS_COLOUR_NONE) |
             ((colour & RGB_LED_GREEN) ? LEDS_GREEN : LEDS_COLOUR_NONE) |
@@ -97,8 +96,8 @@ void rgb_led_set(uint8_t colour)
 /* Various states */
 static uint8_t state;
 
-#define STATE_INIT    		  0
-#define STATE_NET_OK    	  1
+#define STATE_INIT              0
+#define STATE_NET_OK          1
 #define STATE_CONNECTING      2
 #define STATE_CONNECTED       3
 #define STATE_SUBSCRIBED      4
@@ -106,8 +105,8 @@ static uint8_t state;
 
 
 static uint8_t boot;
-#define BOOT_NOT_STARTED	  0
-#define BOOT_INIT       	  1
+#define BOOT_NOT_STARTED      0
+#define BOOT_INIT          1
 #define BOOT_ID_NEGOTIATION   2
 #define BOOT_ID_DENIED        3
 #define BOOT_COMPLETED        4
@@ -157,185 +156,180 @@ mqtt_status_t status;
 char broker_address[CONFIG_IP_ADDR_STR_LEN];
 
 /*---------------------------------------------------------------------------*/
-PROCESS(mqtt_client_process, "MQTT Client heartbeat sensor");
+PROCESS(mqtt_client_process,
+"MQTT Client heartbeat sensor");
 
-static int heartbeat = 100;
+static int heartbeat;
 unsigned short tagID;
-static bool ready = false;
-
-
 
 /*---------------------------------------------------------------------------*/
-static void pub_handler(const char *topic, uint16_t topic_len, const uint8_t *chunk, uint16_t chunk_len){
-  printf("Pub Handler: topic='%s' (len=%u), chunk_len=%u\n", topic, topic_len, chunk_len);
-  char msg_template[128];
-  if (strcmp(topic, TOPIC_ID_CONFIG) == 0)
-  {
-      // received answer during Id negotiation
-      snprintf(msg_template, sizeof(msg_template), "%s %d approved", NODE_TYPE, tagID);
-      if (strcmp((const char *) chunk, msg_template) == 0) {
-        // controlled accepted Id proposal
-         mqtt_unsubscribe(&conn, NULL,TOPIC_ID_CONFIG);
+static void pub_handler(const char *topic, uint16_t topic_len, const uint8_t *chunk, uint16_t chunk_len) {
+    printf("Pub Handler: topic='%s' (len=%u), chunk_len=%u\n", topic, topic_len, chunk_len);
+    char msg_template[128];
+    if (strcmp(topic, TOPIC_ID_CONFIG) == 0) {
+        // received answer during Id negotiation
+        snprintf(msg_template, sizeof(msg_template), "%s %d approved", NODE_TYPE, tagID);
+        if (strcmp((const char *) chunk, msg_template) == 0) {
+            // controlled accepted Id proposal
+            mqtt_unsubscribe(&conn, NULL, TOPIC_ID_CONFIG);
 
-        // it's not subscribed to anything, but the state is used for publishing things
-         state = STATE_SUBSCRIBED;
-      }
-      else
-      {
-        snprintf(msg_template, sizeof(msg_template), "%s %d denied", NODE_TYPE, tagID);
-        if (strcmp((const char *) chunk, msg_template) == 0)
-         {
-         // controlled rejected Id proposal
-         boot = BOOT_ID_DENIED;
-         }
-      }
-  }
+            // it's not subscribed to anything, but the state is used for publishing things
+            state = STATE_SUBSCRIBED;
+        } else {
+            snprintf(msg_template, sizeof(msg_template), "%s %d denied", NODE_TYPE, tagID);
+            if (strcmp((const char *) chunk, msg_template) == 0) {
+                // controlled rejected Id proposal
+                boot = BOOT_ID_DENIED;
+            }
+        }
+    }
 }
+
 /*---------------------------------------------------------------------------*/
-static void mqtt_event(struct mqtt_connection *m, mqtt_event_t event, void *data)
-{
-  switch(event) {
-  case MQTT_EVENT_CONNECTED: {
-    printf("Application has a MQTT connection\n");
-    state = STATE_CONNECTED;
-    break;
-  }
-  case MQTT_EVENT_DISCONNECTED: {
-    printf("MQTT Disconnect. Reason %u\n", *((mqtt_event_t *)data));
-    state = STATE_DISCONNECTED;
-    process_poll(&mqtt_client_process);
-    break;
-  }
-  case MQTT_EVENT_PUBLISH: {
-    msg_ptr = data;
-    pub_handler(msg_ptr->topic, strlen(msg_ptr->topic), msg_ptr->payload_chunk, msg_ptr->payload_length);
-    break;
-  }
-  case MQTT_EVENT_SUBACK: {
+static void mqtt_event(struct mqtt_connection *m, mqtt_event_t event, void *data) {
+    switch (event) {
+        case MQTT_EVENT_CONNECTED: {
+            printf("Application has a MQTT connection\n");
+            state = STATE_CONNECTED;
+            break;
+        }
+        case MQTT_EVENT_DISCONNECTED: {
+            printf("MQTT Disconnect. Reason %u\n", *((mqtt_event_t *) data));
+            state = STATE_DISCONNECTED;
+            process_poll(&mqtt_client_process);
+            break;
+        }
+        case MQTT_EVENT_PUBLISH: {
+            msg_ptr = data;
+            pub_handler(msg_ptr->topic, strlen(msg_ptr->topic), msg_ptr->payload_chunk, msg_ptr->payload_length);
+            break;
+        }
+        case MQTT_EVENT_SUBACK: {
 #if MQTT_311
-    mqtt_suback_event_t *suback_event = (mqtt_suback_event_t *)data;
-    if(suback_event->success) {
-      printf("Application is subscribed to topic successfully\n");
-    } else {
-      printf("Application failed to subscribe to topic (ret code %x)\n", suback_event->return_code);
-    }
+            mqtt_suback_event_t *suback_event = (mqtt_suback_event_t *)data;
+            if(suback_event->success) {
+              printf("Application is subscribed to topic successfully\n");
+            } else {
+              printf("Application failed to subscribe to topic (ret code %x)\n", suback_event->return_code);
+            }
 #else
-    printf("Application is subscribed to topic successfully\n");
+            printf("Application is subscribed to topic successfully\n");
 #endif
-    break;
-  }
-  case MQTT_EVENT_UNSUBACK: {
-    printf("Application is unsubscribed to topic successfully\n");
-    break;
-  }
-  case MQTT_EVENT_PUBACK: {
-    printf("Publishing complete.\n");
-    break;
-  }
-  default:
-    printf("Application got a unhandled MQTT event: %i\n", event);
-    break;
-  }
+            break;
+        }
+        case MQTT_EVENT_UNSUBACK: {
+            printf("Application is unsubscribed to topic successfully\n");
+            break;
+        }
+        case MQTT_EVENT_PUBACK: {
+            printf("Publishing complete.\n");
+            break;
+        }
+        default:
+            printf("Application got a unhandled MQTT event: %i\n", event);
+            break;
+    }
 }
 
-static bool have_connectivity(void)
-{
-  if(uip_ds6_get_global(ADDR_PREFERRED) == NULL ||
-     uip_ds6_defrt_choose() == NULL) {
-    return false;
-  }
-  return true;
+static bool have_connectivity(void) {
+    if (uip_ds6_get_global(ADDR_PREFERRED) == NULL ||
+        uip_ds6_defrt_choose() == NULL) {
+        return false;
+    }
+    return true;
 }
 
 
 /*---------------------------------------------------------------------------*/
-PROCESS_THREAD(mqtt_client_process, ev, data)
-{
-  boot = BOOT_NOT_STARTED;
-  PROCESS_BEGIN();
+PROCESS_THREAD(mqtt_client_process, ev, data) {
+    boot = BOOT_NOT_STARTED;
+    PROCESS_BEGIN();
 
 
-  printf("MQTT Client Process\n");
+    printf("MQTT Client Process\n");
 
-  // Initialize the ClientID as MAC address
-  snprintf(client_id, BUFFER_SIZE, "%02x%02x%02x%02x%02x%02x",
-                     linkaddr_node_addr.u8[0], linkaddr_node_addr.u8[1],
-                     linkaddr_node_addr.u8[2], linkaddr_node_addr.u8[5],
-                     linkaddr_node_addr.u8[6], linkaddr_node_addr.u8[7]);
+    // Initialize the ClientID as MAC address
+    snprintf(client_id, BUFFER_SIZE, "%02x%02x%02x%02x%02x%02x",
+             linkaddr_node_addr.u8[0], linkaddr_node_addr.u8[1],
+             linkaddr_node_addr.u8[2], linkaddr_node_addr.u8[5],
+             linkaddr_node_addr.u8[6], linkaddr_node_addr.u8[7]);
 
-  // Broker registration
-  mqtt_register(&conn, &mqtt_client_process, client_id, mqtt_event,
+    // Broker registration
+    mqtt_register(&conn, &mqtt_client_process, client_id, mqtt_event,
                   MAX_TCP_SEGMENT_SIZE);
-  state=STATE_INIT;
-  boot = BOOT_INIT;
-  // Initialize periodic timer to check the status
-  etimer_set(&periodic_timer, DEFAULT_PUBLISH_INTERVAL);
-  rgb_led_set(RGB_LED_RED);
-  /* Main loop */
-  while(1) {
+    state = STATE_INIT;
+    boot = BOOT_INIT;
+    // Initialize periodic timer to check the status
+    etimer_set(&periodic_timer, DEFAULT_PUBLISH_INTERVAL);
+    rgb_led_set(RGB_LED_RED);
+    /* Main loop */
+    while (1) {
 
-    PROCESS_YIELD();
+        PROCESS_YIELD();
 
-    if((ev == PROCESS_EVENT_TIMER && data == &periodic_timer) || ev == PROCESS_EVENT_POLL){
+        if ((ev == PROCESS_EVENT_TIMER && data == &periodic_timer) || ev == PROCESS_EVENT_POLL) {
 
-		  if(state==STATE_INIT && have_connectivity()){
-				 state = STATE_NET_OK;
-		  }
+            if (state == STATE_INIT && have_connectivity()) {
+                state = STATE_NET_OK;
+            }
 
-		  if(state == STATE_NET_OK){
-			  // Connect to MQTT server
-			  printf("Connecting!\n");
-			  memcpy(broker_address, broker_ip, strlen(broker_ip));
-			  mqtt_connect(&conn, broker_address, DEFAULT_BROKER_PORT, (DEFAULT_PUBLISH_INTERVAL * 3) / CLOCK_SECOND, MQTT_CLEAN_SESSION_ON);
-			  state = STATE_CONNECTING;
-		  }
+            if (state == STATE_NET_OK) {
+                // Connect to MQTT server
+                printf("Connecting!\n");
+                memcpy(broker_address, broker_ip, strlen(broker_ip));
+                mqtt_connect(&conn, broker_address, DEFAULT_BROKER_PORT, (DEFAULT_PUBLISH_INTERVAL * 3) / CLOCK_SECOND,
+                             MQTT_CLEAN_SESSION_ON);
+                state = STATE_CONNECTING;
+            }
 
-          if(state==STATE_CONNECTED){
-			  // Subscribe to a topic
-			  strcpy(sub_topic,TOPIC_ID_CONFIG);
-			  status = mqtt_subscribe(&conn, NULL, sub_topic, MQTT_QOS_LEVEL_0);
-			  printf("Subscribing!\n");
-			  if(status == MQTT_STATUS_OUT_QUEUE_FULL) {
-				LOG_ERR("Tried to subscribe but command queue was full!\n");
-				PROCESS_EXIT();
-			  }
-              tagId = 1 + (int) random_rand() % 100;
-			  boot = BOOT_ID_NEGOTIATION;
-		  }  
-         if ((boot = BOOT_COMPLETED) && (state == STATE_SUBSCRIBED){
-            // Publish periodic sensor data
-            
-            // simulate random change in heartbeat
-            int var_heartbeat = (int) random_rand() % 150;
-            heartbeat = var_heartbeat + 40 ;
-            LOG_INFO("Heartbeat value: %d\n", heartbeat);
+            if (state == STATE_CONNECTED) {
+                // Subscribe to a topic
+                strcpy(sub_topic, TOPIC_ID_CONFIG);
+                status = mqtt_subscribe(&conn, NULL, sub_topic, MQTT_QOS_LEVEL_0);
+                printf("Subscribing!\n");
+                if (status == MQTT_STATUS_OUT_QUEUE_FULL) {
+                    LOG_ERR("Tried to subscribe but command queue was full!\n");
+                    PROCESS_EXIT();
+                }
+                tagID = 1 + (int) random_rand() % 100;
+                boot = BOOT_ID_NEGOTIATION;
+            }
+            if ((boot = BOOT_COMPLETED) && (state == STATE_SUBSCRIBED)) {
+                // Publish periodic sensor data
 
-            sprintf(pub_topic, "%s",TOPIC_SENSOR_DATA);
- 
-            sprintf(app_buffer, PUBLISH_MSG_TEMPLATE, tagId, heartbeat);
+                // simulate random change in heartbeat
+                heartbeat = (int) random_rand() % 150;
+                heartbeat += 40;
+                LOG_INFO("Heartbeat value: %d\n", heartbeat);
 
-            mqtt_publish(&conn, NULL, pub_topic, (uint8_t *)app_buffer, strlen(app_buffer), MQTT_QOS_LEVEL_0, MQTT_RETAIN_OFF);
+                sprintf(pub_topic, "%s", TOPIC_SENSOR_DATA);
+
+                sprintf(app_buffer, PUBLISH_MSG_TEMPLATE, tagId, heartbeat);
+
+                mqtt_publish(&conn, NULL, pub_topic, (uint8_t *) app_buffer, strlen(app_buffer), MQTT_QOS_LEVEL_0,
+                             MQTT_RETAIN_OFF);
+            }
+            if (boot == BOOT_ID_DENIED) {
+                tagId = 1 + (int) random_rand() % 100;
+                boot = BOOT_ID_NEGOTIATION;
+            }
+            if (boot == BOOT_ID_NEGOTIATION) {
+                // id negotiation
+                sprintf(app_buffer, NODE_TYPE + " " + tagId + " awakens");
+                mqtt_publish(&conn, NULL, TOPIC_ID_CONFIG, (uint8_t *) app_buffer, strlen(app_buffer), MQTT_QOS_LEVEL_0,
+                             MQTT_RETAIN_OFF);
+            }
+
+            if (state == STATE_DISCONNECTED) {
+                LOG_ERR("Disconnected from MQTT broker\n");
+                boot = BOOT_FAILED;
+                rgb_led_set(RGB_LED_RED);
+                // Recover from error
+                state = STATE_INIT;
+            }
+            etimer_set(&periodic_timer, DEFAULT_PUBLISH_INTERVAL);
         }
-        if (boot == BOOT_ID_DENIED ) {
-             tagId = 1 + (int) random_rand() % 100;
-             boot = BOOT_ID_NEGOTIATION;
-        }
-        if (boot == BOOT_ID_NEGOTIATION) {
-           // id negotiation
-            sprintf(app_buffer, NODE_TYPE+" "+tagId+" awakens");
-            mqtt_publish(&conn, NULL, TOPIC_ID_CONFIG, (uint8_t *)app_buffer, strlen(app_buffer), MQTT_QOS_LEVEL_0, MQTT_RETAIN_OFF);
-          }
-
-        if ( state == STATE_DISCONNECTED ){
-           LOG_ERR("Disconnected from MQTT broker\n");
-           boot = BOOT_FAILED;
-           rgb_led_set(RGB_LED_RED);
-           // Recover from error
-           state = STATE_INIT;
-        }
-	etimer_set(&periodic_timer, DEFAULT_PUBLISH_INTERVAL);
     }
-  }
-  PROCESS_END();
+    PROCESS_END();
 }
 /*---------------------------------------------------------------------------*/
