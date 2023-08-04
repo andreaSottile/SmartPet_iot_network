@@ -376,7 +376,7 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
             printf("Connecting!\n");
             memcpy(broker_address, broker_ip, strlen(broker_ip));
             mqtt_connect(&conn, broker_address, DEFAULT_BROKER_PORT,
-                         (DEFAULT_PUBLISH_INTERVAL * 3) / CLOCK_SECOND, MQTT_CLEAN_SESSION_ON);
+                         (DEFAULT_SCAN_INTERVAL * 3) / CLOCK_SECOND, MQTT_CLEAN_SESSION_ON);
             state = STATE_CONNECTING;
         }
 
@@ -389,7 +389,7 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
                 LOG_ERR("Tried to subscribe but command queue was full!\n");
                 PROCESS_EXIT();
             }
-            hatchID = 1 + (int) random_rand() % 100;
+            hatchId = 1 + (int) random_rand() % 100;
             boot = BOOT_ID_NEGOTIATION;
         }
         if (boot == BOOT_ID_DENIED) {
