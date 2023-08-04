@@ -129,7 +129,9 @@ PROCESS_THREAD(actuator_node, ev, data)
     if(status == STATE_INIT){
     // In a real application, MAC address is to be used instead of random
         self_id = 1 + (int) random_rand() % 500;
-        const char msg[] = "food_" + possible_ID;
+        char msg[32];
+        snprintf(msg, sizeof(msg),"food_%d", self_id);
+
         status = STATE_REGISTERING;
         coap_set_payload(request, (uint8_t *) msg, sizeof(msg) - 1);
         COAP_BLOCKING_REQUEST(&serverCoap, request, client_chunk_handler);
