@@ -49,8 +49,8 @@
 #include "dev/rgb-led/rgb-led.h"
 
 #define LOG_MODULE "App"
-#define LOG_LEVEL  LOG_LEVEL_APP
-
+// #define LOG_LEVEL  LOG_LEVEL_APP
+#define LOG_LEVEL  LOG_LEVEL_RPL
 //TODO DA DEFINIRE INDIRIZZO SERVER
 #define SERVER_EP "coap://[fd00::202:2:2:2]:5683"
 char *service_url = "/hello";
@@ -61,7 +61,7 @@ char *service_url = "/hello";
 int status = 0;
 int self_id;
 char *res_name;
-extern coap_resource_t res_status;
+// extern coap_resource_t res_status;
 /*---------------------------------------------------------------------------*/
 /* Led manipulation */
 #define RGB_LED_RED     1
@@ -117,7 +117,7 @@ PROCESS_THREAD(actuator_node, ev, data)
 
   PROCESS_BEGIN();
   LOG_INFO("Starting actuator node\n");
-  coap_activate_resource(&res_status, "hatch");
+ // coap_activate_resource(&res_status, "hatch");
   coap_endpoint_parse(SERVER_EP, strlen(SERVER_EP), &serverCoap);
   coap_init_message(request, COAP_TYPE_CON, COAP_GET, 0);  
   coap_set_header_uri_path(request, service_url);
