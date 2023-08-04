@@ -163,8 +163,7 @@ mqtt_status_t status;
 char broker_address[CONFIG_IP_ADDR_STR_LEN];
 
 /*---------------------------------------------------------------------------*/
-PROCESS(mqtt_client_process,
-"MQTT Client-hatch");
+PROCESS(mqtt_client_process, "MQTT Client-hatch");
 
 unsigned short hatchId;
 static bool hatch_open = false;
@@ -207,14 +206,14 @@ static void pub_handler(const char *topic, uint16_t topic_len, const uint8_t *ch
             if (strcmp((const char *) chunk, msg_template) == 0) {
                 LOG_INFO("Hatch %d opening \n", hatchId);
                 printf("Hatch %d opening \n", hatchId);
-                open = true;
+                hatch_open = true;
             } else {
                 snprintf(msg_template, sizeof(msg_template), "%d close", hatchId);
                 if (strcmp((const char *) chunk, msg_template) == 0) {
 
                     LOG_INFO("Hatch %d closed \n", hatchId);
                     printf("Hatch %d closed \n", hatchId);
-                    open = false;
+                    hatch_open = false;
                 }
 
             }
@@ -295,7 +294,7 @@ void trigger_sensor(int sensor_status) {
                              MQTT_QOS_LEVEL_0, MQTT_RETAIN_OFF);
             } else if (state == STATE_DISCONNECTED) {
                 LOG_ERR("Disconnected from MQTT broker\n");
-                boot = BOOT_FAILED
+                boot = BOOT_FAILED;
                 rgb_led_set(RGB_LED_RED);
                 // Recover from error
                 state = STATE_INIT;
@@ -337,7 +336,7 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
         // For a real sensor, this would be an interruption callback
         // for simulation purpose, send a trigger when the sensor detect anything
         if (currentPetLocation != TRIGGER_NONE) {
-            trigger_sensor(currentPetLocation)
+            trigger_sensor(currentPetLocation);
 
             // start timer to close the hatch
             etimer_set(&sensor_timer, DEFAULT_SCAN_INTERVAL);
@@ -347,7 +346,7 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
         if (etimer_expired(&sensor_timer) {
             if (currentPetLocation == TRIGGER_NONE) {
                 // close hatch only if pet is away
-                open = false
+                hatch_open = false;
                 etimer_reset(&sensor_timer);
             } else {
                 // if pet is still around the hatch, wait for more time
