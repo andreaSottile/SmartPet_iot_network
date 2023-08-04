@@ -31,7 +31,6 @@
 #include "contiki.h"
 #include "net/routing/routing.h"
 #include "mqtt.h"
-#include "dev/etc/rgb-led/rgb-led.h"
 #include "net/ipv6/uip.h"
 #include "net/ipv6/uip-icmp6.h"
 #include "net/ipv6/sicslowpan.h"
@@ -45,6 +44,9 @@
 #include <time.h>
 #include <string.h>
 #include <strings.h>
+
+#include "dev/leds.h"
+#include "dev/rgb-led/rgb-led.h"
 /*---------------------------------------------------------------------------*/
 #define LOG_MODULE "mqtt-client-heartbeat"
 #ifdef MQTT_CLIENT_CONF_LOG_LEVEL
@@ -59,10 +61,34 @@
 
 static const char *broker_ip = MQTT_CLIENT_BROKER_IP_ADDR;
 
-// Defaukt config values
+// DefauLt config values
 #define DEFAULT_BROKER_PORT         1883
 #define DEFAULT_PUBLISH_INTERVAL    (1 * CLOCK_SECOND)
 
+/*---------------------------------------------------------------------------*/
+/* Led manipulation */
+#define RGB_LED_RED     1
+#define RGB_LED_GREEN   2
+#define RGB_LED_BLUE    4
+#define RGB_LED_MAGENTA (RGB_LED_RED | RGB_LED_BLUE)
+#define RGB_LED_YELLOW  (RGB_LED_RED | RGB_LED_GREEN)
+#define RGB_LED_CYAN    (RGB_LED_GREEN | RGB_LED_BLUE )
+#define RGB_LED_WHITE   (RGB_LED_RED | RGB_LED_GREEN | RGB_LED_BLUE)
+
+void rgb_led_off(void)
+{
+    leds_off(LEDS_ALL);
+}
+void rgb_led_set(uint8_t colour)
+{
+    leds_mask_t leds =
+            ((colour & RGB_LED_RED) ? LEDS_RED : LEDS_COLOUR_NONE) |
+            ((colour & RGB_LED_GREEN) ? LEDS_GREEN : LEDS_COLOUR_NONE) |
+            ((colour & RGB_LED_BLUE) ? LEDS_BLUE : LEDS_COLOUR_NONE);
+
+    leds_off(LEDS_ALL);
+    leds_on(leds);
+}
 
 // We assume that the broker does not require authentication
 
@@ -140,23 +166,30 @@ static bool ready = false;
 
 
 /*---------------------------------------------------------------------------*/
-static void
-pub_handler(const char *topic, uint16_t topic_len, const uint8_t *chunk, uint16_t chunk_len){
+static void pub_handler(const char *topic, uint16_t topic_len, const uint8_t *chunk, uint16_t chunk_len){
   printf("Pub Handler: topic='%s' (len=%u), chunk_len=%u\n", topic, topic_len, chunk_len);
-  if(strcmp(topic,TOPIC_ID_CONFIG) == 0)
-   // received answer during Id negotiation
-    {
-      if(strcmp((const char*) chunk, NODE_TYPE+" "+tagId+" approved" ) == 0)
-      { // controlled accepted Id proposal
+  char msg_template[128];
+  if (strcmp(topic, TOPIC_ID_CONFIG) == 0)
+  {
+      // received answer during Id negotiation
+      snprintf(msg_template, sizeof(msg_template), "%s %d approved", NODE_TYPE, containerID);
+      if (strcmp((const char *) chunk, msg_template) == 0) {
+        // controlled accepted Id proposal
          mqtt_unsubscribe(&conn, NULL,TOPIC_ID_CONFIG);
          strcpy(sub_topic,TOPIC_ACTUATOR);
          mqtt_subscribe(&conn, NULL, sub_topic, MQTT_QOS_LEVEL_0);
          state = STATE_SUBSCRIBED;
       }
-      if(strcmp((const char*) chunk, NODE_TYPE+" "+tagId+" denied" ) == 0)
-      { // controlled rejected Id proposal
+      else
+      {
+        snprintf(msg_template, sizeof(msg_template), "%s %d denied", NODE_TYPE, containerID);
+        if (strcmp((const char *) chunk, msg_template) == 0)
+         {
+         // controlled rejected Id proposal
          boot = BOOT_ID_DENIED;
+         }
       }
+  }
 }
 /*---------------------------------------------------------------------------*/
 static void mqtt_event(struct mqtt_connection *m, mqtt_event_t event, void *data)
