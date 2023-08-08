@@ -37,7 +37,7 @@ def boot(req):
 def activateRefiller(actuatorId):
     clientCOAP = getConnectionHelperClient()
     # Send a POST request to actuator (THIS HAS NO EFFECT BESIDE THE OUTPUT LOG)
-    response = clientCOAP.post("food", "open" + actuatorId)
+    response = clientCOAP.post("food", "command= open" + actuatorId)
     if response.code == 67:
         return 1
     else:
@@ -47,7 +47,7 @@ def activateRefiller(actuatorId):
 def closeRefiller(actuatorId):
     clientCOAP = getConnectionHelperClient()
     # Send a POST request to actuator (THIS HAS NO EFFECT BESIDE THE OUTPUT LOG)
-    response = clientCOAP.post("food", "close" + actuatorId)
+    response = clientCOAP.post("food", "command= close" + actuatorId)
     if response.code == 67:
         return 1
     else:
@@ -57,7 +57,7 @@ def closeRefiller(actuatorId):
 def closeHatch(actuatorId):
     clientCOAP = getConnectionHelperClient()
     # Send a POST request to actuator (THIS HAS NO EFFECT BESIDE THE OUTPUT LOG)
-    response = clientCOAP.post("hatch", "close" + actuatorId)
+    response = clientCOAP.post("hatch", "command= close" + actuatorId)
     if response.code == 67:
         return 1
     else:
@@ -67,7 +67,7 @@ def closeHatch(actuatorId):
 def openHatch(actuatorId):
     clientCOAP = getConnectionHelperClient()
     # Send a POST request to actuator (THIS HAS NO EFFECT BESIDE THE OUTPUT LOG)
-    response = clientCOAP.post("hatch", "open" + actuatorId)
+    response = clientCOAP.post("hatch", "command=open" + actuatorId)
     if response.code == 67:
         return 1
     else:

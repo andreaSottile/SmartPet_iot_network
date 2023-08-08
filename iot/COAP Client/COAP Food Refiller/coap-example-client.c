@@ -61,7 +61,7 @@ char *service_url = "/hello";
 int status = 0;
 int self_id;
 char *res_name;
-// extern coap_resource_t res_status;
+extern coap_resource_t res_status;
 /*---------------------------------------------------------------------------*/
 /* Led manipulation */
 #define RGB_LED_RED     1
@@ -114,7 +114,7 @@ PROCESS_THREAD(actuator_node, ev, data) {
 
     PROCESS_BEGIN();
     LOG_INFO("Starting actuator node\n");
-   // coap_activate_resource(&res_status, "food");
+    coap_activate_resource(&res_status, "food");
     coap_endpoint_parse(SERVER_EP, strlen(SERVER_EP), &serverCoap);
     coap_init_message(request, COAP_TYPE_CON, COAP_GET, 0);
     coap_set_header_uri_path(request, service_url);
