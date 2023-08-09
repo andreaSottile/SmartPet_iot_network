@@ -177,12 +177,12 @@ static void pub_handler(const char *topic, uint16_t topic_len, const uint8_t *ch
             strcpy(sub_topic, TOPIC_ACTUATOR);
             mqtt_subscribe(&conn, NULL, sub_topic, MQTT_QOS_LEVEL_0);
             state = STATE_SUBSCRIBED;
-            printf("Foodsensor: State Subscribed")
+            printf("Foodsensor: State Subscribed");
         } else {
             snprintf(msg_template, sizeof(msg_template), "%s %d denied", NODE_TYPE, containerID);
             if (strcmp((const char *) chunk, msg_template) == 0) { // controlled rejected Id proposal
                 boot = BOOT_ID_DENIED;
-                printf("Foodsensor: Id Denied")
+                printf("Foodsensor: Id Denied");
             }
         }
     }
