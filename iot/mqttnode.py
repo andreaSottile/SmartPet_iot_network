@@ -53,7 +53,7 @@ class MqttNode:
         self.client.on_connect = self.on_connect
         self.client.on_message = self.on_message
 
-        print("mqtt node is connecting")
+        print("mqtt node is connecting "+str(args))
         self.client.connect(args[0], args[1])
 
         if self.client.is_connected():
