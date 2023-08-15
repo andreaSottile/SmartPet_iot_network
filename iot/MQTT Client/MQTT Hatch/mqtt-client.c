@@ -308,11 +308,10 @@ void trigger_sensor(int sensor_status) {
 
 /*---------------------------------------------------------------------------*/
 PROCESS_THREAD(mqtt_client_process, ev, data) {
-    boot = BOOT_NOT_STARTED;
     PROCESS_BEGIN();
 
     printf("MQTT Client Hatch Sensor Process\n");
-
+    boot = BOOT_NOT_STARTED;
     // Initialize the ClientID as MAC address
     snprintf(client_id, BUFFER_SIZE, "%02x%02x%02x%02x%02x%02x",
              linkaddr_node_addr.u8[0], linkaddr_node_addr.u8[1],
@@ -324,6 +323,8 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
     state = STATE_INIT;
 
     boot = BOOT_INIT;
+    printf("Hatchsensor boot: %d\n", boot);
+
     // Initialize periodic timer to check the status
     etimer_set(&pet_timer, DEFAULT_PET_BEHAVIOR_INTERVAL);
     rgb_led_set(RGB_LED_RED);
@@ -369,6 +370,7 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
 
         if (state == STATE_INIT && have_connectivity()) {
             state = STATE_NET_OK;
+            printf("Hatchsensor: state net ok \n");
         }
 
         if (state == STATE_NET_OK) {
@@ -378,6 +380,8 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
             mqtt_connect(&conn, broker_address, DEFAULT_BROKER_PORT,
                          (DEFAULT_SCAN_INTERVAL * 3) / CLOCK_SECOND, MQTT_CLEAN_SESSION_ON);
             state = STATE_CONNECTING;
+            printf("Hatchsensor: state connecting \n");
+            printf("Hatchsensor boot %d \n", boot);
         }
 
         if (state == STATE_CONNECTED) {
@@ -391,14 +395,17 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
             }
             hatchId = 1 + (int) random_rand() % 100;
             boot = BOOT_ID_NEGOTIATION;
+            printf("Hatchsensor boot: %d\n", boot);
         }
         if (boot == BOOT_ID_DENIED) {
+            printf("Hatchsensor %d: Id Denied\n", hatchID);
             hatchId = 1 + (int) random_rand() % 100;
             boot = BOOT_ID_NEGOTIATION;
+            printf("Hatchsensor boot: %d\n", boot);
         }
 
         if (boot == BOOT_ID_NEGOTIATION) {
-
+            printf("Hatchsensor %d: Publishing candidate_id \n", containerID);
             // id negotiation
             sprintf(app_buffer, "%s %d awakens",NODE_TYPE,hatchId);
             mqtt_publish(&conn, NULL, TOPIC_ID_CONFIG, (uint8_t *) app_buffer, strlen(app_buffer), MQTT_QOS_LEVEL_0, MQTT_RETAIN_OFF);
@@ -409,14 +416,17 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
         }
         if (etimer_expired(&periodic_timer)) {
             if (boot == BOOT_WAITING_FOR_ANS) {
+                printf("Hatchsensor timeout:  no answer received\n");
                 // no answer received from Id negotiation
                 boot = BOOT_ID_NEGOTIATION;
+                printf("Hatchsensor boot: %d\n", boot);
             } else {
                 etimer_stop(&periodic_timer);
             }
         }
 
         if (state == STATE_DISCONNECTED) {
+            printf("Hatchsensor %d: disconnected \n", containerID);
             LOG_ERR("Disconnected from MQTT broker\n");
             boot = BOOT_FAILED;
             rgb_led_set(RGB_LED_RED);

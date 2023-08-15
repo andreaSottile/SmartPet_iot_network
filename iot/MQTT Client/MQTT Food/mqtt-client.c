@@ -274,12 +274,11 @@ void meal_time(int *foodLevel) {
 
 /*---------------------------------------------------------------------------*/
 PROCESS_THREAD(mqtt_client_process, ev, data) {
-    boot = BOOT_NOT_STARTED;
     PROCESS_BEGIN();
 
 
     printf("MQTT Food Sensor Process\n");
-
+    boot = BOOT_NOT_STARTED;
     // Initialize the ClientID as MAC address
     snprintf(client_id, BUFFER_SIZE, "%02x%02x%02x%02x%02x%02x",
              linkaddr_node_addr.u8[0], linkaddr_node_addr.u8[1],
@@ -292,22 +291,24 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
     state = STATE_INIT;
     printf("Foodsensor: init \n");
     // Initialize periodic timer to check the status
-    etimer_set(&periodic_timer, DEFAULT_PUBLISH_INTERVAL);
+    etimer_set(&periodic_timer, STATE_MACHINE_PERIODIC);
     etimer_set(&meal_timer, EATING_RATE);
     rgb_led_set(RGB_LED_RED);
 
     boot = BOOT_INIT;
     /* Main loop */
-    while (1) {
+    printf("Foodsensor iniziale boot %d \n", boot);
 
+    while (1) {
         PROCESS_YIELD();
+
         if (etimer_expired(&meal_timer)) {
             meal_time(&foodLevel);
             etimer_reset(&meal_timer);
+            printf("Foodsensor: gnam %d \n", foodLevel);
+
         }
-
         if ((ev == PROCESS_EVENT_TIMER && data == &periodic_timer) || ev == PROCESS_EVENT_POLL) {
-
             if (state == STATE_INIT && have_connectivity()) {
                 state = STATE_NET_OK;
                 printf("Foodsensor: state net ok \n");
@@ -321,11 +322,12 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
                              MQTT_CLEAN_SESSION_ON);
                 state = STATE_CONNECTING;
                 printf("Foodsensor: state connecting \n");
+                printf("Foodsensor boot %d \n", boot);
+
             }
 
             if (state == STATE_CONNECTED) {
-
-                if (boot == BOOT_INIT)
+            if (boot == BOOT_INIT)
                 { // Subscribe to a topic
                     strcpy(sub_topic, TOPIC_ID_CONFIG);
                     status = mqtt_subscribe(&conn, NULL, sub_topic, MQTT_QOS_LEVEL_0);
@@ -345,6 +347,7 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
                 // Id negotiation failed, must repeat it
                 containerID = 1 + (int) random_rand() % 100;
                 boot = BOOT_ID_NEGOTIATION;
+                printf("Foodsensor boot: %d\n", boot);
                 }
 
                 if (boot == BOOT_ID_NEGOTIATION) {
@@ -382,7 +385,7 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
     // Recover from error
                 state = STATE_INIT;
             }
-            etimer_set(&periodic_timer, DEFAULT_PUBLISH_INTERVAL);
+            etimer_set(&periodic_timer, STATE_MACHINE_PERIODIC);
         }
     }
     PROCESS_END();
