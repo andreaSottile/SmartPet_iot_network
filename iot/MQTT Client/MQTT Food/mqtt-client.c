@@ -109,7 +109,6 @@ static uint8_t boot;
 #define BOOT_ID_DENIED        3
 #define BOOT_COMPLETED        4
 #define BOOT_FAILED           5
-#define BOOT_WAITING          6
 /*---------------------------------------------------------------------------*/
 /* PUBLISH/SUBSCRIBE MESSAGE TEMPLATES */
 #define NODE_TYPE "food"
@@ -138,9 +137,7 @@ static char sub_topic[BUFFER_SIZE];
 
 // Periodic timer to check the state of the MQTT client
 #define STATE_MACHINE_PERIODIC     (CLOCK_SECOND >> 1)
-#define REGISTER_PERIODIC     (CLOCK_SECOND * 10)
 static struct etimer periodic_timer;
-static struct etimer register_timer;
 static struct etimer meal_timer; //Pet behaviour simulation timer
 
 /*---------------------------------------------------------------------------*/
@@ -166,10 +163,10 @@ static bool filling = false; // actuator status detected on the container
 unsigned short containerID = 0;
 static int meal_size = 30;
 static int meal_charge = 100;
+static int counter = 0;
 
 /*---------------------------------------------------------------------------*/
 static void pub_handler(const char *topic, uint16_t topic_len, const uint8_t *chunk, uint16_t chunk_len) {
-
     printf("Pub Handler: topic='%s' (len=%u), chunk_len=%u\n", topic, topic_len, chunk_len);
     char msg_template[128];
     if (strcmp(topic, TOPIC_ID_CONFIG) == 0) {
@@ -178,7 +175,6 @@ static void pub_handler(const char *topic, uint16_t topic_len, const uint8_t *ch
         if (strcmp((const char *) chunk, msg_template) == 0) {
             // controlled accepted Id proposal
             mqtt_unsubscribe(&conn, NULL, TOPIC_ID_CONFIG);
-
         } else {
             snprintf(msg_template, sizeof(msg_template), "%s %d denied", NODE_TYPE, containerID);
             if (strcmp((const char *) chunk, msg_template) == 0) { // controlled rejected Id proposal
@@ -214,7 +210,6 @@ static void pub_handler(const char *topic, uint16_t topic_len, const uint8_t *ch
 
 /*---------------------------------------------------------------------------*/
 static void mqtt_event(struct mqtt_connection *m, mqtt_event_t event, void *data) {
-printf("event %i \n",event);
     switch (event) {
         case MQTT_EVENT_CONNECTED: {
             printf("Foodsensor: state connected \n");
@@ -229,7 +224,6 @@ printf("event %i \n",event);
             break;
         }
         case MQTT_EVENT_PUBLISH: {
-            printf("Publishing on %s", msg_ptr->topic)
             msg_ptr = data;
             pub_handler(msg_ptr->topic, strlen(msg_ptr->topic), msg_ptr->payload_chunk, msg_ptr->payload_length);
             break;
@@ -249,13 +243,15 @@ printf("event %i \n",event);
         }
         case MQTT_EVENT_UNSUBACK: {
             printf("Application is unsubscribed to topic successfully\n");
-
             if (strcmp(msg_ptr->topic, TOPIC_ID_CONFIG) == 0) {
                 strcpy(sub_topic, TOPIC_ACTUATOR);
                 status = mqtt_subscribe(&conn, NULL, sub_topic, MQTT_QOS_LEVEL_0);
-
+                if (status == MQTT_STATUS_OUT_QUEUE_FULL) {
+                        printf("status %i, boot %d, state %d", status, boot, state);
+                        LOG_ERR("Tried to subscribe but command queue was full!\n");
+                    }
                 state = STATE_SUBSCRIBED;
-                printf("Foodsensor: State Subscribed");
+                printf("Foodsensor: State Subscribed \n");
                  printf("status %i, boot %d, state %d", status, boot, state);
             }
             break;
@@ -288,7 +284,7 @@ void meal_time(int *foodLevel) {
 PROCESS_THREAD(mqtt_client_process, ev, data) {
     PROCESS_BEGIN();
 
-
+    counter = 0;
     printf("MQTT Food Sensor Process\n");
     boot = BOOT_NOT_STARTED;
     // Initialize the ClientID as MAC address
@@ -303,7 +299,6 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
     state = STATE_INIT;
     printf("Foodsensor: init \n");
     // Initialize periodic timer to check the status
-
     etimer_set(&periodic_timer, STATE_MACHINE_PERIODIC);
     etimer_set(&meal_timer, EATING_RATE);
     rgb_led_set(RGB_LED_RED);
@@ -321,16 +316,9 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
             printf("Foodsensor: gnam %d \n", foodLevel);
 
         }
-        if (etimer_expired(&register_timer)){
-          if (boot == BOOT_WAITING){
-                    boot=BOOT_ID_NEGOTIATION;
-                }
-        }
-
         if ((ev == PROCESS_EVENT_TIMER && data == &periodic_timer) || ev == PROCESS_EVENT_POLL) {
             if (state == STATE_INIT && have_connectivity()) {
                 state = STATE_NET_OK;
-                boot = BOOT_INIT;
                 printf("Foodsensor: state net ok \n");
             }
 
@@ -371,14 +359,14 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
                 }
 
                 if (boot == BOOT_ID_NEGOTIATION) {
-                printf("Foodsensor %d: Publishing candidate_id \n", containerID);
-                // id negotiation: ask controller for Id approval
-                boot = BOOT_WAITING;
-                sprintf(app_buffer, "%s %d awakens", NODE_TYPE, containerID);
-
-                mqtt_publish(&conn, NULL, TOPIC_ID_CONFIG, (uint8_t *) app_buffer, strlen(app_buffer), MQTT_QOS_LEVEL_0,
-                        MQTT_RETAIN_OFF);
-                etimer_set(&register_timer, REGISTER_PERIODIC);
+			if(counter == 0){
+				printf("Foodsensor %d: Publishing candidate_id \n", containerID);
+				// id negotiation: ask controller for Id approval
+				sprintf(app_buffer, "%s %d awakens", NODE_TYPE, containerID);
+				mqtt_publish(&conn, NULL, TOPIC_ID_CONFIG, (uint8_t *) app_buffer, strlen(app_buffer), MQTT_QOS_LEVEL_0,
+				        MQTT_RETAIN_OFF);
+				counter = 1;
+			}
                 }
 
             }
