@@ -7,7 +7,7 @@ from iot.mqttnode import MqttNode
 
 target_host_mqtt = "127.0.0.1"
 target_port_mqtt = 1883
-mqtt_listener = MqttNode()
+mqtt_listener = None
 mqtt_thread = None
 coap_listener = 0  # CoapNode()
 coap_thread = None
@@ -26,6 +26,8 @@ def boot(req):
     create_grafana_dashboard(req)
 
     print("network starting up")
+    mqtt_listener = MqttNode()
+
     mqtt_thread = threading.Thread(target=mqtt_listener.task, args=(target_host_mqtt, target_port_mqtt), kwargs={})
     mqtt_thread.start()
 

@@ -53,13 +53,12 @@ class MqttNode:
         self.client.on_connect = self.on_connect
         self.client.on_message = self.on_message
 
-        print("mqtt node is connecting "+str(args))
-        self.client.connect(args[0], args[1])
-
-        if self.client.is_connected():
-            print("mqtt node is connected successfully")
-        else:
-            print("mqtt node is not able to connect")
+        print("mqtt node is connecting " + str(args))
+        broker_ip = args[0]
+        broker_port = args[1]
+        print("Connecting to " + str(broker_ip) + ":" + str(broker_port))
+        # Set up the client to connect to the broker
+        self.client.connect(broker_ip, broker_port)
 
         # lock the thread in a loop that is permanent until disconnect is called
         # reconnections and callbacks are handled by the library
@@ -68,23 +67,28 @@ class MqttNode:
     def disconnect(self):
         self.client.disconnect()
 
-    def on_message(self, msg):
+    def on_message(self, client, userdata, msg):
 
         if msg.topic == TOPIC_ID_CONFIG:
             # msg payload is defined as: "node_type node_id action"
-            msg_fields = str(msg.payload).split(" ")
+            payload = str(msg.payload).replace("'", "")
+            msg_fields = payload.split(" ")
 
-            if msg_fields == "awakens":
+            if msg_fields[2] == "awakens":
                 # new node has connected, waiting for IP
-                negotiate_id(self, id_proposed=msg_fields[1], node_type=msg_fields[0])
+                negotiate_id(self, id_proposed=msg_fields[1], node_type=msg_fields[0][1:])
             # remote nodes can only publish "awakens" action.
             # this thread (controller) is the only one able to publish other actions
         else:
             # digest message from sensors
             receive(self, msg.topic, msg.payload)
 
-    def on_connect(self):
-        self.client.subscribe(TOPIC_SENSOR_HATCH)
-        self.client.subscribe(TOPIC_SENSOR_HEARTBEAT)
-        self.client.subscribe(TOPIC_SENSOR_FOOD)
-        self.client.subscribe(TOPIC_ID_CONFIG)
+    def on_connect(self, client, userdata, flags, rc):
+        if rc == 0:
+            print("Connected to MQTT broker")
+            self.client.subscribe(TOPIC_SENSOR_HATCH)
+            self.client.subscribe(TOPIC_SENSOR_HEARTBEAT)
+            self.client.subscribe(TOPIC_SENSOR_FOOD)
+            self.client.subscribe(TOPIC_ID_CONFIG)
+        else:
+            print("Failed to connect to MQTT broker")

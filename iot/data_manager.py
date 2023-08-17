@@ -1,18 +1,18 @@
+from django.utils import timezone
+
 from Network_Controller.models import *
 from iot.network_manager import *
 from iot.handler_HelperClient import createConnection
 from iot.pubsubconfig import *
-import time
+import re
 
 
 # MSG TEMPLATE:
 # { type:[Food, Heartbeat, Trapdoor] config:[false,true] arguments:{a:1 b:2 c:3} }
 
-def timestamp():
-    """
-    return current timestamp
-    """
-    return time.time()
+def clean_string_to_number(raw_string):
+    defined = str(raw_string)
+    return int(re.sub(r'\D', '', defined))
 
 
 def decode_message(type_msg, raw_msg):
@@ -25,7 +25,7 @@ def decode_message(type_msg, raw_msg):
     :return: content of the message
     """
     try:
-        digested_msg = raw_msg.split(";")
+        digested_msg = str(raw_msg).split(";")
         node_id = (digested_msg[0].split(":"))[1]
         value = (digested_msg[1].split(":"))[1]
         if type_msg in [TOPIC_SENSOR_HATCH, TOPIC_SENSOR_HEARTBEAT, TOPIC_SENSOR_FOOD]:
@@ -44,8 +44,8 @@ def save_food(food_level, cid):
     param food_level: content of the bowl received
     param cid: id of the food bowl
     """
-    now = timestamp()
-    f = Food(lvl=food_level, time=now, containerID=cid)
+
+    f = Food(lvl=clean_string_to_number(food_level), containerID=cid)
     f.save()
     updateLastInteraction(cid)
 
@@ -57,8 +57,8 @@ def save_heartbeat(frequency, pid):
     param frequency: latest heartbeat frequency received
     param pid: id of the pet tag
     """
-    now = timestamp()
-    hb = Heartbeat(frequency=frequency, time=now, petID=pid)
+
+    hb = Heartbeat(frequency=clean_string_to_number(frequency), petID=pid)
     hb.save()
     updateLastInteraction(pid)
 
@@ -71,8 +71,7 @@ def save_hatch(direction, wid):
     param wid: id of the hatch
     """
 
-    now = timestamp()
-    w = Hatch(direction_Trigger=direction, time=now, hatchId=wid)
+    w = Hatch(direction_Trigger=direction, hatchId=wid)
     w.save()
     updateLastInteraction(wid)
 
@@ -139,6 +138,8 @@ def check_food_level(cid):
 
     except Food.DoesNotExist:
         return 0, 0  # no previous record detected, no action to perform
+    # default case / permission denied: no action to do, hatch stay closed
+    return 0, 0
 
 
 def check_hatch(hatch_id):
@@ -246,6 +247,7 @@ def collect_data(msg_topic, msg_raw):
         return 0, 0
 
     updateLastInteraction(target_id)
+
     if msg_topic == TOPIC_SENSOR_FOOD:
         save_food(arg, target_id)
         return check_food_level(target_id)
@@ -265,25 +267,23 @@ def get_COAP_Address_from_ID(nodeID):
         return 0
 
 
-def get_LiveClient_from_ID(nodeID):
-    return LiveClient.objects.filter(nodeId=nodeID).first()
-
-
 def updateLastInteraction(nodeId):
-    now = timestamp()
-    client = get_LiveClient_from_ID(nodeId)
+    client = None
     try:
-        client.lastInteraction = now
-        client.save()
+        client = LiveClient.objects.get(nodeId=nodeId)
     except LiveClient.DoesNotExist:
         print("Trying to update an unknown node: " + str(nodeId))
+        client = None
+    if client is not None:
+        client.lastInteraction = timezone.now()
+        client.save()
 
 
 def lookForPartner(node_type, target):
     if target == 'Sensor':
-        targetID = LiveClient.objects.filter(node_type=node_type, isActuator=False, isFree=True).first()
+        targetID = LiveClient.objects.filter(nodeType=node_type, isActuator=False, isFree=True).first()
     elif target == 'Actuator':
-        targetID = LiveClient.objects.filter(node_type=node_type, isActuator=True, isFree=True).first()
+        targetID = LiveClient.objects.filter(nodeType=node_type, isActuator=True, isFree=True).first()
     else:
         return 0
     if targetID is not None:
@@ -300,17 +300,21 @@ def register_sensor(candidate_id, node_type):
     :param node_type: type of the sensor node.
     :return: confirmation/reject message to sensor for that ID.
     '''
-    duplicate = LiveClient.objects.filter(nodeId=candidate_id).exists()
-    if duplicate:
+    duplicate = None
+    try:
+        duplicate = LiveClient.objects.get(nodeId=candidate_id)
         # rejected candidate_id
+
+    except LiveClient.DoesNotExist:
+        duplicate = None
+        # this is the case we want, there is no other duplicate
+    if duplicate is not None:
         return str(node_type) + " " + str(candidate_id) + " denied"
     else:
         # not a duplicate: register new node
-        now = timestamp()
         if node_type == 'heartbeat':
             # Heartbeat Node doesn't have to be paired with actuators
-            live = LiveClient(nodeId=candidate_id, node_type=node_type, isFree=False, isActuator=False,
-                              lastInteraction=now)
+            live = LiveClient(nodeId=candidate_id, nodeType=node_type, isFree=False, isActuator=False)
             live.save()
         else:
             # Food/Hatch cases
@@ -319,14 +323,12 @@ def register_sensor(candidate_id, node_type):
             if partnerID > 0:
                 # Found unpaired actuator
                 pair = Pair(nodeIdMQTT=candidate_id, nodeIdCOAP=partnerID)
-                live = LiveClient(nodeId=candidate_id, node_type=node_type, isFree=False, isActuator=False,
-                                  lastInteraction=now)
+                live = LiveClient(nodeId=candidate_id, nodeType=node_type, isFree=False, isActuator=False)
                 live.save()
                 pair.save()
             else:
                 #  No compatible unpaired actuator
-                live = LiveClient(nodeId=candidate_id, node_type=node_type, isActuator=False, isFree=True,
-                                  lastInteraction=now)
+                live = LiveClient(nodeId=candidate_id, nodeType=node_type, isActuator=False, isFree=True)
                 live.save()
         return str(node_type) + " " + str(candidate_id) + " approved"
 
@@ -352,13 +354,13 @@ def register_actuator(candidate_id, node_type, node_address):
         if partnerID > 0:
             # Found unpaired actuator
             pair = Pair(nodeIdMQTT=candidate_id, nodeIdCOAP=partnerID)
-            live = LiveClient(nodeId=candidate_id, node_type=node_type, isFree=False, isActuator=True,
+            live = LiveClient(nodeId=candidate_id, nodeType=node_type, isFree=False, isActuator=True,
                               nodeCoapAddress=node_address, lastInteraction=now)
             live.save()
             pair.save()
         else:
             #  No compatible unpaired actuator
-            live = LiveClient(nodeId=candidate_id, node_type=node_type, isActuator=True, isFree=True,
+            live = LiveClient(nodeId=candidate_id, nodeType=node_type, isActuator=True, isFree=True,
                               nodeCoapAddress=node_address, lastInteraction=now)
             live.save()
         createConnection(candidate_id, node_address)

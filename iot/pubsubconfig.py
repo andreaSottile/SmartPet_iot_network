@@ -15,3 +15,5 @@ COMMAND_CLOSE_HATCH = "closed_hatch"
 COMMAND_REFILL_START_FOOD = "start_refill"
 COMMAND_REFILL_STOP_FOOD = "stop_refill"
 
+COMMAND_ID_REGISTER = "%s %d awakens"
+COMMAND_ID_DENY = "%s %d denied"

@@ -5,7 +5,7 @@ from django.db import models
 
 class Food(models.Model):
     lvl = models.IntegerField()
-    time = models.DateTimeField()
+    time = models.DateTimeField(auto_now_add=True)
     containerID = models.CharField(max_length=100)
 
 
@@ -23,7 +23,7 @@ class FoodConfig(models.Model):
 
 class Heartbeat(models.Model):
     frequency = models.IntegerField()
-    time = models.DateTimeField()
+    time = models.DateTimeField(auto_now_add=True)
     petID = models.CharField(max_length=100)
 
 
@@ -41,7 +41,7 @@ class Hatch(models.Model):
     nothing = 0
     inside = 1
     outside = 2
-    time = models.DateTimeField()
+    time = models.DateTimeField(auto_now_add=True)
     hatchId = models.CharField(max_length=100)
     DIRECTION_TRIGGER_CHOICES = (
         (0, 'Nothing'),
@@ -80,7 +80,7 @@ class LiveClient(models.Model):
                                 default=unknown
                                 )
     isActuator = models.BooleanField(default=False)
-    lastInteraction = models.DateTimeField()
+    lastInteraction = models.DateTimeField(auto_now_add=True)
 
 
 class Pair(models.Model):
