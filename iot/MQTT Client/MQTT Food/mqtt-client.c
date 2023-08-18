@@ -166,7 +166,7 @@ static bool filling = false; // actuator status detected on the container
 unsigned short candidateID = 0;
 unsigned short containerID = 0;
 static int meal_size = 30;
-static int meal_charge = 100;
+static int meal_charge = 20;
 static int counter = 0;
 
 /*---------------------------------------------------------------------------*/
@@ -291,7 +291,7 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
     state = STATE_INIT;
     printf("Foodsensor: init \n");
     // Initialize periodic timer to check the status
-    etimer_set(&periodic_timer, STATE_MACHINE_PERIODIC);
+    etimer_set(&periodic_timer, DEFAULT_PUBLISH_INTERVAL);
     etimer_set(&meal_timer, EATING_RATE);
     etimer_set(&sub_timer, DEFAULT_PUBLISH_INTERVAL);
     rgb_led_set(RGB_LED_RED);
@@ -411,7 +411,7 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
     // Recover from error
                 state = STATE_INIT;
             }
-            etimer_set(&periodic_timer, STATE_MACHINE_PERIODIC);
+            etimer_set(&periodic_timer, DEFAULT_PUBLISH_INTERVAL);
         }
     }
     PROCESS_END();
