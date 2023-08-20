@@ -429,6 +429,7 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
                         candidateId = 1 + (int) random_rand() % 100;
                         boot = BOOT_ID_NEGOTIATION;
                         printf("Hatch sensor boot: %d\n", boot);
+                        counter=0;
                         }
                     if (boot == BOOT_ID_NEGOTIATION) {
                         if(counter == 0){
@@ -446,7 +447,7 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
             if (state == STATE_DISCONNECTED) {
                 printf("Hatch sensor %d: disconnected \n", hatchId);
                 LOG_ERR("Disconnected from MQTT broker\n");
-                boot = BOOT_FAILED;
+                boot = BOOT_INIT;
                 rgb_led_set(RGB_LED_RED);
                 // Recover from error
                 state = STATE_INIT;

@@ -369,6 +369,7 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
                 // Id negotiation failed, must repeat it
                 candidateID = 1 + (int) random_rand() % 100;
                 boot = BOOT_ID_NEGOTIATION;
+                counter=0;
                 printf("Foodsensor boot: %d\n", boot);
                 }
 
@@ -406,7 +407,7 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
             if (state == STATE_DISCONNECTED) {
                 printf("Foodsensor %d: disconnected \n", containerID);
                 LOG_ERR("Disconnected from MQTT broker\n");
-                boot = BOOT_FAILED;
+                boot = BOOT_INIT;
                 rgb_led_set(RGB_LED_RED);
     // Recover from error
                 state = STATE_INIT;
