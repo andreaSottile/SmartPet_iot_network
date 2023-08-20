@@ -170,6 +170,7 @@ char broker_address[CONFIG_IP_ADDR_STR_LEN];
 /*---------------------------------------------------------------------------*/
 PROCESS(mqtt_client_process, "MQTT Client-hatch");
 int counter;
+int flag_for_timer;
 unsigned short hatchId = 0;
 unsigned short candidateId = 0;
 
@@ -315,6 +316,7 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
 
     printf("MQTT Client Hatch Sensor Process\n");
     counter = 0;
+    flag_for_timer = 0;
 
     boot = BOOT_NOT_STARTED;
     // Initialize the ClientID as MAC address
@@ -350,16 +352,19 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
             etimer_set(&sensor_timer, DEFAULT_SCAN_INTERVAL);
         }
         // hatch closing: wait for a delay after pet is detected
-        if (etimer_expired(&sensor_timer)){
-            if (currentPetLocation == TRIGGER_NONE) {
-                // close hatch only if pet is away
-                hatch_open = false;
-                etimer_reset(&sensor_timer);
-            } else {
-                // if pet is still around the hatch, wait for more time
-                etimer_set(&sensor_timer, DEFAULT_SCAN_INTERVAL);
-            }
-        }
+        if (flag_for_timer ==1){
+		if(etimer_expired(&sensor_timer)){
+		    printf("prova if timer \n");
+		    if (currentPetLocation == TRIGGER_NONE) {
+		        // close hatch only if pet is away
+		        hatch_open = false;
+		        etimer_reset(&sensor_timer);
+		    } else {
+		        // if pet is still around the hatch, wait for more time
+		        etimer_set(&sensor_timer, DEFAULT_SCAN_INTERVAL);
+		    }
+		}
+	}
         if (etimer_expired(&sub_timer)) {
             if(state == STATE_PRESUBSCRIBED){
             strcpy(sub_topic, TOPIC_ACTUATOR);

@@ -183,7 +183,7 @@ static void pub_handler(const char *topic, uint16_t topic_len, const uint8_t *ch
 	    state = STATE_PRESUBSCRIBED;
             boot = BOOT_COMPLETED;
             printf("Foodsensor: State Presubscribed & Boot Completed\n");
-            printf("boot %d, state %d", boot, state);
+            //printf("boot %d, state %d", boot, state);
         } else {
             snprintf(msg_template, sizeof(msg_template), "%s %d denied", NODE_TYPE, candidateID);
             if (strcmp((const char *) chunk, msg_template) == 0) { // controlled rejected Id proposal
