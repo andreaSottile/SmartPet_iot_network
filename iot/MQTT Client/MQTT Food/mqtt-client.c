@@ -325,7 +325,7 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
 		    }	
 		else {
 		      state = STATE_SUBSCRIBED;
-		      printf("Foodsensor: State Presubscribed\n");
+		      printf("Foodsensor: State Subscribed\n");
 		      printf("Foodsensor boot %d state %d \n", boot, state);
 		}	
 

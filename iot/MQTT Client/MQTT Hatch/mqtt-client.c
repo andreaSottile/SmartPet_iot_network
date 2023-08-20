@@ -169,7 +169,7 @@ char broker_address[CONFIG_IP_ADDR_STR_LEN];
 
 /*---------------------------------------------------------------------------*/
 PROCESS(mqtt_client_process, "MQTT Client-hatch");
-
+int counter;
 unsigned short hatchId = 0;
 unsigned short candidateId = 0;
 
@@ -364,98 +364,97 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
             if(state == STATE_PRESUBSCRIBED){
             strcpy(sub_topic, TOPIC_ACTUATOR);
             printf("subtopic act: %s\n", sub_topic);
-            status_FoodTopic = mqtt_subscribe(&conn, NULL, sub_topic, MQTT_QOS_LEVEL_0);
-            if (status_FoodTopic == MQTT_STATUS_OUT_QUEUE_FULL) {
+            status_HatchTopic = mqtt_subscribe(&conn, NULL, sub_topic, MQTT_QOS_LEVEL_0);
+            if (status_HatchTopic == MQTT_STATUS_OUT_QUEUE_FULL) {
               LOG_ERR("Tried to subscribe but command queue was full!\n");
                 }
             printf("%i", status_HatchTopic);
-            if (status_FoodTopic != 0) {
+            if (status_HatchTopic != 0) {
                 printf("reset timer for subscribe to topic actuator");
                         etimer_reset(&sub_timer);
                 }
             else {
                   state = STATE_SUBSCRIBED;
-                  printf("Hatch sensor: State Presubscribed\n");
+                  printf("Hatch sensor: StateSubscribed\n");
                   printf("Hatch sensor boot %d state %d \n", boot, state);
-            }
-             }
-            if ((state == STATE_SUBSCRIBED) && (boot == BOOT_COMPLETED) && etimer_expired(&pet_timer)) {
-                // simulate pet behaviour
-                if (pet_behavior_wait == 0) {
-                    // random counter for movement
-                    pet_behavior_wait = 5 + (int) random_rand() % 10;
-                    // new random position (it teleports? it's fine for a simulation)
-                    currentPetLocation = (random_rand() % 3);
-                } else
-                    pet_behavior_wait--;
-                // reset timer
-                //etimer_reset(&pet_timer);
-                etimer_set(&pet_timer, DEFAULT_PET_BEHAVIOR_INTERVAL);
-            }
-
-            if ((ev == PROCESS_EVENT_TIMER && data == &periodic_timer) || ev == PROCESS_EVENT_POLL) {
-                if (state == STATE_INIT && have_connectivity()) {
-                    state = STATE_NET_OK;
-                    printf("Hatchsensor: state net ok \n");
-                }
-                if (state == STATE_NET_OK) {
-                  // Connect to MQTT server
-                    printf("Connecting!\n");
-                    memcpy(broker_address, broker_ip, strlen(broker_ip));
-                    mqtt_connect(&conn, broker_address, DEFAULT_BROKER_PORT, (DEFAULT_PUBLISH_INTERVAL * 3) / CLOCK_SECOND,
-                                 MQTT_CLEAN_SESSION_ON);
-                    state = STATE_CONNECTING;
-                    printf("Hatch sensor: state connecting \n");
-                    printf("Hatch sensor boot %d \n", boot);
-                }
-                if (state == STATE_CONNECTED) {
-                    if (boot == BOOT_INIT)
-                        { // Subscribe to a topic
-                        strcpy(sub_topic, TOPIC_ID_CONFIG);
-                        printf("subtopic: %s\n", sub_topic);
-                        statusId_config = mqtt_subscribe(&conn, NULL, sub_topic, MQTT_QOS_LEVEL_0);
-                        printf("Subscribing to Id Config\n");
-                        if (statusId_config == MQTT_STATUS_OUT_QUEUE_FULL) {
-                            LOG_ERR("Tried to subscribe but command queue was full!\n");
-                            PROCESS_EXIT();
-                            }
-                        candidateId = 1 + (int) random_rand() % 100;
-                        boot = BOOT_ID_NEGOTIATION;
-                        }
-                        if (boot == BOOT_ID_DENIED) {
-                            printf("Hatch sensor %d: Id Denied\n", candidateId);
-                            // Id negotiation failed, must repeat it
-                            candidateId = 1 + (int) random_rand() % 100;
-                            boot = BOOT_ID_NEGOTIATION;
-                            printf("Hatch sensor boot: %d\n", boot);
-                            }
-                        if (boot == BOOT_ID_NEGOTIATION) {
-                            if(counter == 0){
-                                printf("Hatch sensor %d: Publishing candidate_id \n", candidateId);
-                                // id negotiation: ask controller for Id approval
-                                sprintf(app_buffer, "%s %d awakens", NODE_TYPE, candidateId);
-                                mqtt_publish(&conn, NULL, TOPIC_ID_CONFIG, (uint8_t *) app_buffer, strlen(app_buffer), MQTT_QOS_LEVEL_0, MQTT_RETAIN_OFF);
-                                counter = 1;
-                                etimer_reset(&sub_timer);
-                                }
-                            }
-                    }
-
-
-                if (state == STATE_DISCONNECTED) {
-                    printf("Hatch sensor %d: disconnected \n", hatchId);
-                    LOG_ERR("Disconnected from MQTT broker\n");
-                    boot = BOOT_FAILED;
-                    rgb_led_set(RGB_LED_RED);
-                    // Recover from error
-                    state = STATE_INIT;
-                    }
-                etimer_set(&periodic_timer, DEFAULT_PUBLISH_INTERVAL);
                 }
             }
         }
+        if ((state == STATE_SUBSCRIBED) && (boot == BOOT_COMPLETED) && etimer_expired(&pet_timer)) {
+            // simulate pet behaviour
+            if (pet_behavior_wait == 0) {
+                // random counter for movement
+                pet_behavior_wait = 5 + (int) random_rand() % 10;
+                // new random position (it teleports? it's fine for a simulation)
+                currentPetLocation = (random_rand() % 3);
+            } else
+                pet_behavior_wait--;
+            // reset timer
+            //etimer_reset(&pet_timer);
+            etimer_set(&pet_timer, DEFAULT_PET_BEHAVIOR_INTERVAL);
+        }
+
+        if ((ev == PROCESS_EVENT_TIMER && data == &periodic_timer) || ev == PROCESS_EVENT_POLL) {
+            if (state == STATE_INIT && have_connectivity()) {
+                state = STATE_NET_OK;
+                printf("Hatchsensor: state net ok \n");
+            }
+            if (state == STATE_NET_OK) {
+              // Connect to MQTT server
+                printf("Connecting!\n");
+                memcpy(broker_address, broker_ip, strlen(broker_ip));
+                mqtt_connect(&conn, broker_address, DEFAULT_BROKER_PORT, (DEFAULT_PUBLISH_INTERVAL * 3) / CLOCK_SECOND,
+                             MQTT_CLEAN_SESSION_ON);
+                state = STATE_CONNECTING;
+                printf("Hatch sensor: state connecting \n");
+                printf("Hatch sensor boot %d \n", boot);
+            }
+            if (state == STATE_CONNECTED) {
+                if (boot == BOOT_INIT)
+                    { // Subscribe to a topic
+                    strcpy(sub_topic, TOPIC_ID_CONFIG);
+                    printf("subtopic: %s\n", sub_topic);
+                    statusId_config = mqtt_subscribe(&conn, NULL, sub_topic, MQTT_QOS_LEVEL_0);
+                    printf("Subscribing to Id Config\n");
+                    if (statusId_config == MQTT_STATUS_OUT_QUEUE_FULL) {
+                        LOG_ERR("Tried to subscribe but command queue was full!\n");
+                        PROCESS_EXIT();
+                        }
+                    candidateId = 1 + (int) random_rand() % 100;
+                    boot = BOOT_ID_NEGOTIATION;
+                    }
+                    if (boot == BOOT_ID_DENIED) {
+                        printf("Hatch sensor %d: Id Denied\n", candidateId);
+                        // Id negotiation failed, must repeat it
+                        candidateId = 1 + (int) random_rand() % 100;
+                        boot = BOOT_ID_NEGOTIATION;
+                        printf("Hatch sensor boot: %d\n", boot);
+                        }
+                    if (boot == BOOT_ID_NEGOTIATION) {
+                        if(counter == 0){
+                            printf("Hatch sensor %d: Publishing candidate_id \n", candidateId);
+                            // id negotiation: ask controller for Id approval
+                            sprintf(app_buffer, "%s %d awakens", NODE_TYPE, candidateId);
+                            mqtt_publish(&conn, NULL, TOPIC_ID_CONFIG, (uint8_t *) app_buffer, strlen(app_buffer), MQTT_QOS_LEVEL_0, MQTT_RETAIN_OFF);
+                            counter = 1;
+                            etimer_reset(&sub_timer);
+                            }
+                        }
+                }
+
+
+            if (state == STATE_DISCONNECTED) {
+                printf("Hatch sensor %d: disconnected \n", hatchId);
+                LOG_ERR("Disconnected from MQTT broker\n");
+                boot = BOOT_FAILED;
+                rgb_led_set(RGB_LED_RED);
+                // Recover from error
+                state = STATE_INIT;
+                }
+            etimer_set(&periodic_timer, DEFAULT_PUBLISH_INTERVAL);
+            }
+        }
+
     PROCESS_END();
 }
 /*---------------------------------------------------------------------------*/
-
-#pragma clang diagnostic pop
