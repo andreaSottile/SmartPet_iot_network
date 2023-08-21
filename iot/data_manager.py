@@ -348,7 +348,7 @@ def register_actuator(candidate_id, node_type, node_address):
         return str(node_type) + " " + str(candidate_id) + " denied"
     else:
         # not a duplicate: register new node
-        now = timestamp()
+        now = timezone.now()
         # Looking for an unpaired Actuator Node of the same type of the sensor
         partnerID = lookForPartner(node_type, target="Sensor")
         if partnerID > 0:
