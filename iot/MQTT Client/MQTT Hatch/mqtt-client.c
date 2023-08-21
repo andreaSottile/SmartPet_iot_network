@@ -196,13 +196,13 @@ static void pub_handler(const char *topic, uint16_t topic_len, const uint8_t *ch
            	state = STATE_PRESUBSCRIBED;
             boot = BOOT_COMPLETED;
             printf("Hatchsensor: State Presubscribed & Boot Completed\n");
-            printf("boot %d, state %d", boot, state);
+            printf("boot %d, state %d \n", boot, state);
 
         } else {
             snprintf(msg_template, sizeof(msg_template), "%s %d denied", NODE_TYPE, candidateId);
             if (strcmp((const char *) chunk, msg_template) == 0) { // controlled rejected Id proposal
                 boot = BOOT_ID_DENIED;
-                printf("Hatch sensor: Id Denied");
+                printf("Hatch sensor: Id Denied \n");
             }
         }
     }
@@ -373,9 +373,9 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
             if (status_HatchTopic == MQTT_STATUS_OUT_QUEUE_FULL) {
               LOG_ERR("Tried to subscribe but command queue was full!\n");
                 }
-            printf("%i", status_HatchTopic);
+            printf("%i \n", status_HatchTopic);
             if (status_HatchTopic != 0) {
-                printf("reset timer for subscribe to topic actuator");
+                printf("reset timer for subscribe to topic actuator \n");
                         etimer_reset(&sub_timer);
                 }
             else {

@@ -189,7 +189,7 @@ static void pub_handler(const char *topic, uint16_t topic_len, const uint8_t *ch
             if (strcmp((const char *) chunk, msg_template) == 0) { // controlled rejected Id proposal
 		
                 boot = BOOT_ID_DENIED;
-                printf("Foodsensor: Id Denied");
+                printf("Foodsensor: Id Denied \n");
             }
         }
     }
@@ -318,9 +318,9 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
 		if (status_FoodTopic == MQTT_STATUS_OUT_QUEUE_FULL) {
 		  LOG_ERR("Tried to subscribe but command queue was full!\n");
 		    }
-		printf("%i", status_FoodTopic);
+		printf("%i \n", status_FoodTopic);
 		if (status_FoodTopic != 0) {
-			printf("reset timer for subscribe to topic actuator");
+			printf("reset timer for subscribe to topic actuator \n");
                 	etimer_reset(&sub_timer);
 		    }	
 		else {

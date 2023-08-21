@@ -63,7 +63,7 @@ static const char *broker_ip = MQTT_CLIENT_BROKER_IP_ADDR;
 
 // DefauLt config values
 #define DEFAULT_BROKER_PORT         1883
-#define DEFAULT_PUBLISH_INTERVAL    (1 * CLOCK_SECOND)
+#define DEFAULT_PUBLISH_INTERVAL    (5 * CLOCK_SECOND)
 
 /*---------------------------------------------------------------------------*/
 /* Led manipulation */
@@ -96,17 +96,18 @@ void rgb_led_set(uint8_t colour) {
 /* Various states */
 static uint8_t state;
 
-#define STATE_INIT              0
+#define STATE_INIT            0
 #define STATE_NET_OK          1
 #define STATE_CONNECTING      2
 #define STATE_CONNECTED       3
 #define STATE_SUBSCRIBED      4
 #define STATE_DISCONNECTED    5
+#define STATE_PRESUBSCRIBED   6
 
 
 static uint8_t boot;
 #define BOOT_NOT_STARTED      0
-#define BOOT_INIT          1
+#define BOOT_INIT             1
 #define BOOT_ID_NEGOTIATION   2
 #define BOOT_ID_DENIED        3
 #define BOOT_COMPLETED        4
@@ -139,6 +140,7 @@ static char sub_topic[BUFFER_SIZE];
 // Periodic timer to check the state of the MQTT client
 #define STATE_MACHINE_PERIODIC     (CLOCK_SECOND >> 1)
 static struct etimer periodic_timer;
+static struct etimer sub_timer; //subscribe simulation timer
 
 /*---------------------------------------------------------------------------*/
 /*
@@ -152,7 +154,8 @@ static struct mqtt_message *msg_ptr = 0;
 
 static struct mqtt_connection conn;
 
-mqtt_status_t status;
+mqtt_status_t status_HeartTopic;
+mqtt_status_t statusId_config;
 char broker_address[CONFIG_IP_ADDR_STR_LEN];
 
 /*---------------------------------------------------------------------------*/
@@ -160,7 +163,9 @@ PROCESS(mqtt_client_process,
 "MQTT Client heartbeat sensor");
 
 static int heartbeat;
-unsigned short tagId;
+unsigned short candidateID = 0;
+unsigned short tagId = 0;
+static int counter = 0;
 
 /*---------------------------------------------------------------------------*/
 static void pub_handler(const char *topic, uint16_t topic_len, const uint8_t *chunk, uint16_t chunk_len) {
@@ -168,18 +173,23 @@ static void pub_handler(const char *topic, uint16_t topic_len, const uint8_t *ch
     char msg_template[128];
     if (strcmp(topic, TOPIC_ID_CONFIG) == 0) {
         // received answer during Id negotiation
-        snprintf(msg_template, sizeof(msg_template), "%s %d approved", NODE_TYPE, tagId);
+        snprintf(msg_template, sizeof(msg_template), "%s %d approved", NODE_TYPE, candidateID);
         if (strcmp((const char *) chunk, msg_template) == 0) {
             // controlled accepted Id proposal
+            tagId = candidateID;
             mqtt_unsubscribe(&conn, NULL, TOPIC_ID_CONFIG);
 
             // it's not subscribed to anything, but the state is used for publishing things
-            state = STATE_SUBSCRIBED;
+            state = STATE_PRESUBSCRIBED;
+            boot = BOOT_COMPLETED;
+            printf("Heartsensor: State Presubscribed & Boot Completed\n");
+            //printf("boot %d, state %d", boot, state);
         } else {
-            snprintf(msg_template, sizeof(msg_template), "%s %d denied", NODE_TYPE, tagId);
+            snprintf(msg_template, sizeof(msg_template), "%s %d denied", NODE_TYPE, candidateID);
             if (strcmp((const char *) chunk, msg_template) == 0) {
                 // controlled rejected Id proposal
                 boot = BOOT_ID_DENIED;
+                printf("Heartsensor: Id Denied \n");
             }
         }
     }
@@ -189,13 +199,14 @@ static void pub_handler(const char *topic, uint16_t topic_len, const uint8_t *ch
 static void mqtt_event(struct mqtt_connection *m, mqtt_event_t event, void *data) {
     switch (event) {
         case MQTT_EVENT_CONNECTED: {
-            printf("Application has a MQTT connection\n");
+            printf("Heartsensor: state connected \n");
             state = STATE_CONNECTED;
             break;
         }
         case MQTT_EVENT_DISCONNECTED: {
             printf("MQTT Disconnect. Reason %u\n", *((mqtt_event_t *) data));
             state = STATE_DISCONNECTED;
+            printf("Heartsensor: state disconnected \n");
             process_poll(&mqtt_client_process);
             break;
         }
@@ -246,8 +257,9 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
     PROCESS_BEGIN();
 
 
-    printf("MQTT Client Process\n");
-
+	counter = 0;
+    printf("MQTT Heart Sensor Process\n");
+    boot = BOOT_NOT_STARTED;
     // Initialize the ClientID as MAC address
     snprintf(client_id, BUFFER_SIZE, "%02x%02x%02x%02x%02x%02x",
              linkaddr_node_addr.u8[0], linkaddr_node_addr.u8[1],
@@ -258,19 +270,43 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
     mqtt_register(&conn, &mqtt_client_process, client_id, mqtt_event,
                   MAX_TCP_SEGMENT_SIZE);
     state = STATE_INIT;
-    boot = BOOT_INIT;
+    printf("Heartsensor: state init \n");
     // Initialize periodic timer to check the status
     etimer_set(&periodic_timer, DEFAULT_PUBLISH_INTERVAL);
+	etimer_set(&sub_timer, DEFAULT_PUBLISH_INTERVAL);
     rgb_led_set(RGB_LED_RED);
+    boot = BOOT_INIT;
     /* Main loop */
+    printf("Heartsensor boot %d \n", boot);
     while (1) {
 
         PROCESS_YIELD();
 
+	    if (etimer_expired(&sub_timer)) {
+            if(state == STATE_PRESUBSCRIBED){
+                strcpy(sub_topic, TOPIC_ACTUATOR);
+                printf("subtopic act: %s\n", sub_topic);
+                status_HeartTopic = mqtt_subscribe(&conn, NULL, sub_topic, MQTT_QOS_LEVEL_0);
+                if (status_HeartTopic == MQTT_STATUS_OUT_QUEUE_FULL) {
+                  LOG_ERR("Tried to subscribe but command queue was full!\n");
+                    }
+                printf("%i \n", status_HeartTopic);
+                if (status_HeartTopic != 0) {
+                    printf("reset timer for subscribe to topic actuator \n");
+                            etimer_reset(&sub_timer);
+                }
+                else {
+                      state = STATE_SUBSCRIBED;
+                      printf("Heartsensor: State Subscribed\n");
+                      printf("Heartsensor boot %d state %d \n", boot, state);
+                }
+            }
+        }
         if ((ev == PROCESS_EVENT_TIMER && data == &periodic_timer) || ev == PROCESS_EVENT_POLL) {
 
             if (state == STATE_INIT && have_connectivity()) {
                 state = STATE_NET_OK;
+                printf("Heartsensor: state net ok \n");
             }
 
             if (state == STATE_NET_OK) {
@@ -280,19 +316,43 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
                 mqtt_connect(&conn, broker_address, DEFAULT_BROKER_PORT, (DEFAULT_PUBLISH_INTERVAL * 3) / CLOCK_SECOND,
                              MQTT_CLEAN_SESSION_ON);
                 state = STATE_CONNECTING;
+	            printf("Heartsensor: state connecting \n");
+                printf("Heartsensor boot %d \n", boot);
             }
 
             if (state == STATE_CONNECTED) {
-                // Subscribe to a topic
-                strcpy(sub_topic, TOPIC_ID_CONFIG);
-                status = mqtt_subscribe(&conn, NULL, sub_topic, MQTT_QOS_LEVEL_0);
-                printf("Subscribing!\n");
-                if (status == MQTT_STATUS_OUT_QUEUE_FULL) {
-                    LOG_ERR("Tried to subscribe but command queue was full!\n");
-                    PROCESS_EXIT();
+                if (boot == BOOT_INIT) {
+                    // Subscribe to a topic
+                    strcpy(sub_topic, TOPIC_ID_CONFIG);
+                    printf("subtopic: %s\n", sub_topic);
+                    statusId_config = mqtt_subscribe(&conn, NULL, sub_topic, MQTT_QOS_LEVEL_0);
+                    printf("Subscribing to Id Config\n");
+                    if (statusId_config == MQTT_STATUS_OUT_QUEUE_FULL) {
+                        LOG_ERR("Tried to subscribe but command queue was full!\n");
+                        PROCESS_EXIT();
+                    }
+                    candidateID = 1 + (int) random_rand() % 100;
+                    boot = BOOT_ID_NEGOTIATION;
                 }
-                tagId = 1 + (int) random_rand() % 100;
-                boot = BOOT_ID_NEGOTIATION;
+                if (boot == BOOT_ID_DENIED) {
+                    printf("Heartsensor %d: Id Denied\n", candidateID);
+                    // Id negotiation failed, must repeat it
+                    candidateID = 1 + (int) random_rand() % 100;
+                    boot = BOOT_ID_NEGOTIATION;
+                    counter=0;
+                    printf("Heartsensor boot: %d\n", boot);
+                }
+                if (boot == BOOT_ID_NEGOTIATION) {
+                    if(counter == 0){
+                        printf("Heartsensor %d: Publishing candidate_id \n", candidateID);
+                        // id negotiation: ask controller for Id approval
+                        sprintf(app_buffer, "%s %d awakens", NODE_TYPE, candidateID);
+                        mqtt_publish(&conn, NULL, TOPIC_ID_CONFIG, (uint8_t *) app_buffer, strlen(app_buffer), MQTT_QOS_LEVEL_0,
+                                MQTT_RETAIN_OFF);
+                        counter = 1;
+                        etimer_reset(&sub_timer);
+                    }
+                }
             }
             if ((boot == BOOT_COMPLETED) && (state == STATE_SUBSCRIBED)) {
                 // Publish periodic sensor data
@@ -309,20 +369,10 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
                 mqtt_publish(&conn, NULL, pub_topic, (uint8_t *) app_buffer, strlen(app_buffer), MQTT_QOS_LEVEL_0,
                              MQTT_RETAIN_OFF);
             }
-            if (boot == BOOT_ID_DENIED) {
-                tagId = 1 + (int) random_rand() % 100;
-                boot = BOOT_ID_NEGOTIATION;
-            }
-            if (boot == BOOT_ID_NEGOTIATION) {
-                // id negotiation
-                sprintf(app_buffer, "%s %d awakens",NODE_TYPE,tagId);
-                mqtt_publish(&conn, NULL, TOPIC_ID_CONFIG, (uint8_t *) app_buffer, strlen(app_buffer), MQTT_QOS_LEVEL_0,
-                             MQTT_RETAIN_OFF);
-            }
-
             if (state == STATE_DISCONNECTED) {
+                printf("Heartsensor %d: disconnected \n", containerID);
                 LOG_ERR("Disconnected from MQTT broker\n");
-                boot = BOOT_FAILED;
+                boot = BOOT_INIT;
                 rgb_led_set(RGB_LED_RED);
                 // Recover from error
                 state = STATE_INIT;
