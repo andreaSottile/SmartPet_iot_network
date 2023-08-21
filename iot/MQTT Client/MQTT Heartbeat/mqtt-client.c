@@ -284,22 +284,9 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
 
 	    if (etimer_expired(&sub_timer)) {
             if(state == STATE_PRESUBSCRIBED){
-                strcpy(sub_topic, TOPIC_ACTUATOR);
-                printf("subtopic act: %s\n", sub_topic);
-                status_HeartTopic = mqtt_subscribe(&conn, NULL, sub_topic, MQTT_QOS_LEVEL_0);
-                if (status_HeartTopic == MQTT_STATUS_OUT_QUEUE_FULL) {
-                  LOG_ERR("Tried to subscribe but command queue was full!\n");
-                    }
-                printf("%i \n", status_HeartTopic);
-                if (status_HeartTopic != 0) {
-                    printf("reset timer for subscribe to topic actuator \n");
-                            etimer_reset(&sub_timer);
-                }
-                else {
                       state = STATE_SUBSCRIBED;
                       printf("Heartsensor: State Subscribed\n");
                       printf("Heartsensor boot %d state %d \n", boot, state);
-                }
             }
         }
         if ((ev == PROCESS_EVENT_TIMER && data == &periodic_timer) || ev == PROCESS_EVENT_POLL) {
