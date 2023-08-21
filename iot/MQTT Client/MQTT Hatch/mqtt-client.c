@@ -353,18 +353,18 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
         }
         // hatch closing: wait for a delay after pet is detected
         if (flag_for_timer ==1){
-		if(etimer_expired(&sensor_timer)){
-		    printf("prova if timer \n");
-		    if (currentPetLocation == TRIGGER_NONE) {
-		        // close hatch only if pet is away
-		        hatch_open = false;
-		        etimer_reset(&sensor_timer);
-		    } else {
-		        // if pet is still around the hatch, wait for more time
-		        etimer_set(&sensor_timer, DEFAULT_SCAN_INTERVAL);
-		    }
-		}
-	}
+            if(etimer_expired(&sensor_timer)){
+                printf("prova if timer \n");
+                if (currentPetLocation == TRIGGER_NONE) {
+                    // close hatch only if pet is away
+                    hatch_open = false;
+                    etimer_reset(&sensor_timer);
+                } else {
+                    // if pet is still around the hatch, wait for more time
+                    etimer_set(&sensor_timer, DEFAULT_SCAN_INTERVAL);
+                }
+            }
+	    }
         if (etimer_expired(&sub_timer)) {
             if(state == STATE_PRESUBSCRIBED){
             strcpy(sub_topic, TOPIC_ACTUATOR);
@@ -382,6 +382,7 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
                   state = STATE_SUBSCRIBED;
                   printf("Hatch sensor: StateSubscribed\n");
                   printf("Hatch sensor boot %d state %d \n", boot, state);
+                  flag_for_timer = 1;
                 }
             }
         }

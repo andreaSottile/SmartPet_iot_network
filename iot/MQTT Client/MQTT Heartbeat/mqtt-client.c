@@ -253,7 +253,6 @@ static bool have_connectivity(void) {
 
 /*---------------------------------------------------------------------------*/
 PROCESS_THREAD(mqtt_client_process, ev, data) {
-    boot = BOOT_NOT_STARTED;
     PROCESS_BEGIN();
 
 
@@ -357,7 +356,7 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
                              MQTT_RETAIN_OFF);
             }
             if (state == STATE_DISCONNECTED) {
-                printf("Heartsensor %d: disconnected \n", containerID);
+                printf("Heartsensor %d: disconnected \n", tagId);
                 LOG_ERR("Disconnected from MQTT broker\n");
                 boot = BOOT_INIT;
                 rgb_led_set(RGB_LED_RED);
