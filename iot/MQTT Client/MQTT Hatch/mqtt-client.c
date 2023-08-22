@@ -433,26 +433,36 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
                         }
                     candidateId = 1 + (int) random_rand() % 100;
                     boot = BOOT_ID_NEGOTIATION;
+                }
+                if (boot == BOOT_ID_DENIED) {
+                    printf("Hatch sensor %d: Id Denied\n", candidateId);
+                    // Id negotiation failed, must repeat it
+                    candidateId = 1 + (int) random_rand() % 100;
+                    boot = BOOT_ID_NEGOTIATION;
+                    printf("Hatch sensor boot: %d\n", boot);
+                    counter=0;
                     }
-                    if (boot == BOOT_ID_DENIED) {
-                        printf("Hatch sensor %d: Id Denied\n", candidateId);
-                        // Id negotiation failed, must repeat it
-                        candidateId = 1 + (int) random_rand() % 100;
-                        boot = BOOT_ID_NEGOTIATION;
-                        printf("Hatch sensor boot: %d\n", boot);
-                        counter=0;
-                        }
-                    if (boot == BOOT_ID_NEGOTIATION) {
+                if (boot == BOOT_ID_NEGOTIATION) {
+                    if((counter == 0) || (counter == 1)){
                         if(counter == 0){
                             printf("Hatch sensor %d: Publishing candidate_id \n", candidateId);
                             // id negotiation: ask controller for Id approval
                             sprintf(app_buffer, "%s %d awakens", NODE_TYPE, candidateId);
-                            mqtt_publish(&conn, NULL, TOPIC_ID_CONFIG, (uint8_t *) app_buffer, strlen(app_buffer), MQTT_QOS_LEVEL_0, MQTT_RETAIN_OFF);
-                            counter = 1;
-                            etimer_reset(&sub_timer);
-                            }
+                            sprintf(pub_topic, "%s", TOPIC_ID_CONFIG);
+                            printf("%s \n", app_buffer);
+                            counter =1;
                         }
+                        status_Publish = mqtt_publish(&conn, NULL, pub_topic, (uint8_t *) app_buffer, strlen(app_buffer), MQTT_QOS_LEVEL_0,
+                                MQTT_RETAIN_OFF);
+                        if (status_Publish == 0) {
+                            counter = 2;
+                            etimer_reset(&sub_timer);
+                        }
+                        else{ printf("Wait to publish because the Client queue is full \n");}
+                    }
                 }
+
+            }
 
 
             if (state == STATE_DISCONNECTED) {

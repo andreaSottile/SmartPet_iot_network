@@ -329,16 +329,25 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
                     printf("Heartsensor boot: %d\n", boot);
                 }
                 if (boot == BOOT_ID_NEGOTIATION) {
-                    if(counter == 0){
-                        printf("Heartsensor %d: Publishing candidate_id \n", candidateID);
-                        // id negotiation: ask controller for Id approval
-                        sprintf(app_buffer, "%s %d awakens", NODE_TYPE, candidateID);
-                        mqtt_publish(&conn, NULL, TOPIC_ID_CONFIG, (uint8_t *) app_buffer, strlen(app_buffer), MQTT_QOS_LEVEL_0,
+                    if((counter == 0) || (counter == 1)){
+                        if(counter == 0){
+                            printf("Heartsensor %d: Publishing candidate_id \n", candidateID);
+                            // id negotiation: ask controller for Id approval
+                            sprintf(app_buffer, "%s %d awakens", NODE_TYPE, candidateID);
+                            sprintf(pub_topic, "%s", TOPIC_ID_CONFIG);
+                            printf("%s \n", app_buffer);
+                            counter =1;
+                        }
+                        status_Publish = mqtt_publish(&conn, NULL, pub_topic, (uint8_t *) app_buffer, strlen(app_buffer), MQTT_QOS_LEVEL_0,
                                 MQTT_RETAIN_OFF);
-                        counter = 1;
-                        etimer_reset(&sub_timer);
+                        if (status_Publish == 0) {
+                            counter = 2;
+                            etimer_reset(&sub_timer);
+                        }
+                        else{ printf("Wait to publish because the Client queue is full \n");}
                     }
                 }
+
             }
             if ((boot == BOOT_COMPLETED) && (state == STATE_SUBSCRIBED)) {
                 // Publish periodic sensor data
