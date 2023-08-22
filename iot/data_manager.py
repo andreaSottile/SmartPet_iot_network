@@ -45,7 +45,6 @@ def save_food(food_level, cid):
     param cid: id of the food bowl
     """
     value = clean_string_to_number(food_level)
-    print(str(food_level) + " " + str(value))
     f = Food(lvl=value, containerID=cid)
     f.save()
     updateLastInteraction(cid)
@@ -59,7 +58,6 @@ def save_heartbeat(frequency, pid):
     param pid: id of the pet tag
     """
     value = clean_string_to_number(frequency)
-    print(str(frequency) + " " + str(value))
     hb = Heartbeat(frequency=value, petID=pid)
     hb.save()
     updateLastInteraction(pid)
@@ -73,7 +71,6 @@ def save_hatch(direction, wid):
     param wid: id of the hatch
     """
     value = clean_string_to_number(direction)
-    print(str(value))
     w = Hatch(direction_Trigger=value, hatchId=wid)
     w.save()
     updateLastInteraction(wid)
@@ -215,7 +212,7 @@ def check_heartbeat(petId):
         high, low = config.high_Threshold, config.low_Threshold
     except HeartBeatConfig.DoesNotExist:
         pass  # not a problem, using default config values
-    print("Heartbeat config: " + low + " " + high)
+    print("Heartbeat config: " + str(low) + " " + str(high))
     try:
         latest = Heartbeat.objects.filter(petID=petId).latest("time")
 
