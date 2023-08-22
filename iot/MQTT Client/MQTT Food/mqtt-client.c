@@ -322,7 +322,7 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
 		printf("%i \n", status_FoodTopic);
 		if (status_FoodTopic != 0) {
 			printf("reset timer for subscribe to topic actuator \n");
-                	etimer_reset(&sub_timer);
+                	etimer_set(&sub_timer);
 		    }	
 		else {
 		      state = STATE_SUBSCRIBED;
@@ -420,6 +420,7 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
                 rgb_led_set(RGB_LED_RED);
     // Recover from error
                 state = STATE_INIT;
+                counter=0;
             }
             etimer_set(&periodic_timer, DEFAULT_PUBLISH_INTERVAL);
         }

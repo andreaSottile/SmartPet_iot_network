@@ -156,6 +156,7 @@ static struct mqtt_connection conn;
 
 mqtt_status_t status_HeartTopic;
 mqtt_status_t statusId_config;
+mqtt_status_t status_Publish;
 char broker_address[CONFIG_IP_ADDR_STR_LEN];
 
 /*---------------------------------------------------------------------------*/
@@ -371,6 +372,7 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
                 rgb_led_set(RGB_LED_RED);
                 // Recover from error
                 state = STATE_INIT;
+                counter=0;
             }
             etimer_set(&periodic_timer, DEFAULT_PUBLISH_INTERVAL);
         }
