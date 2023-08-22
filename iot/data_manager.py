@@ -72,8 +72,9 @@ def save_hatch(direction, wid):
     param direction: side of the hatch triggered
     param wid: id of the hatch
     """
-    print(str(direction))
-    w = Hatch(direction_Trigger=direction, hatchId=wid)
+    value = clean_string_to_number(direction)
+    print(str(value))
+    w = Hatch(direction_Trigger=value, hatchId=wid)
     w.save()
     updateLastInteraction(wid)
 
@@ -168,7 +169,8 @@ def check_hatch(hatch_id):
     try:
         latest = Hatch.objects.filter(hatchId=hatch_id).latest("time")
         print(str(latest))
-        if latest.direction_Trigger == Hatch.nothing:
+        print("comparison: "+str(latest.direction_Trigger)+" "+str(Hatch.nothing))
+        if str(latest.direction_Trigger) == str(Hatch.nothing):
             print("received trigger 0 from " + str(hatch_id))
             pairObject = Pair.objects.filter(nodeIdMQTT=hatch_id).first()
             print(str(pairObject))
