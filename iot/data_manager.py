@@ -44,8 +44,9 @@ def save_food(food_level, cid):
     param food_level: content of the bowl received
     param cid: id of the food bowl
     """
-
-    f = Food(lvl=clean_string_to_number(food_level), containerID=cid)
+    value = clean_string_to_number(food_level)
+    print(str(food_level) + " " + str(value))
+    f = Food(lvl=value, containerID=cid)
     f.save()
     updateLastInteraction(cid)
 
@@ -57,8 +58,9 @@ def save_heartbeat(frequency, pid):
     param frequency: latest heartbeat frequency received
     param pid: id of the pet tag
     """
-
-    hb = Heartbeat(frequency=clean_string_to_number(frequency), petID=pid)
+    value = clean_string_to_number(frequency)
+    print(str(frequency) + " " + str(value))
+    hb = Heartbeat(frequency=value, petID=pid)
     hb.save()
     updateLastInteraction(pid)
 
@@ -70,7 +72,7 @@ def save_hatch(direction, wid):
     param direction: side of the hatch triggered
     param wid: id of the hatch
     """
-
+    print(str(direction))
     w = Hatch(direction_Trigger=direction, hatchId=wid)
     w.save()
     updateLastInteraction(wid)
@@ -102,11 +104,12 @@ def check_food_level(cid):
         bottom = config.lvlMin
     except FoodConfig.DoesNotExist:
         pass  # not a problem, using default config values
+    print("food config: " + str(bottom) + " " + str(stop) + " " + str(start) + " " + str(top))
 
     # check food level against requirements
     try:
-        latest = Food.objects.order_by("time")[:1].get()
-
+        latest = Food.objects.latest("time")
+        print(str(latest))
         if latest.lvl > top:
             display_alert("CRITICAL WARNING: food bowl " + str(cid) + " is overfilled")
         if latest.lvl < bottom:
@@ -138,7 +141,7 @@ def check_food_level(cid):
 
     except Food.DoesNotExist:
         return 0, 0  # no previous record detected, no action to perform
-    # default case / permission denied: no action to do, hatch stay closed
+    # default case, should be unreachable / permission denied: no action to do, hatch stay closed
     return 0, 0
 
 
@@ -161,18 +164,23 @@ def check_hatch(hatch_id):
     except HatchConfig.DoesNotExist:
         pass  # not a problem, using default config values
 
+    print("Permission : " + str(open_permission))
     try:
-        latest = Hatch.objects.filter(hatchId=hatch_id).order_by("time")[:1].get()
-
+        latest = Hatch.objects.filter(hatchId=hatch_id).latest("time")
+        print(str(latest))
         if latest.direction_Trigger == Hatch.nothing:
+            print("received trigger 0 from " + str(hatch_id))
             pairObject = Pair.objects.filter(nodeIdMQTT=hatch_id).first()
+            print(str(pairObject))
             if pairObject is not None:
+                print("paired object")
                 pairActuator = pairObject.nodeIdCOAP
                 done = closeHatch(pairActuator)
                 if done:
                     updateLastInteraction(pairActuator)
             return COMMAND_CLOSE_HATCH, hatch_id
         else:
+            print("received positive trigger from " + str(hatch_id))
             if open_permission:
                 pairObject = Pair.objects.filter(nodeIdMQTT=hatch_id).first()
                 if pairObject is not None:
@@ -185,6 +193,8 @@ def check_hatch(hatch_id):
 
     except Hatch.DoesNotExist:
         return 0, 0  # no previous record detected, no action to perform
+    # default case, should be unreachable / permission denied: no action to do, hatch stay closed
+    return 0, 0
 
 
 def check_heartbeat(petId):
@@ -197,14 +207,15 @@ def check_heartbeat(petId):
     # show alert on client app
 
     high, low = HeartBeatConfig.defaultHigh, HeartBeatConfig.defaultLow
+
     try:
         config = HeartBeatConfig.objects.get(petID=petId)
         high, low = config.high_Threshold, config.low_Threshold
     except HeartBeatConfig.DoesNotExist:
         pass  # not a problem, using default config values
-
+    print("Heartbeat config: " + low + " " + high)
     try:
-        latest = Heartbeat.objects.filter(petID=petId).order_by("time")[:1].get()
+        latest = Heartbeat.objects.filter(petID=petId).latest("time")
 
         if latest.frequency > HeartBeatConfig.max:
             display_alert("CRITICAL WARNING: frequency for " + str(petId) + " is above max possible value")
