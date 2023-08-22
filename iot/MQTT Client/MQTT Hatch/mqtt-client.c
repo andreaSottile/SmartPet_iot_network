@@ -397,6 +397,7 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
                 pet_behavior_wait = 5 + (int) random_rand() % 10;
                 // new random position (it teleports? it's fine for a simulation)
                 currentPetLocation = (random_rand() % 3);
+                printf("Hatch sensor pet location %d \n", currentPetLocation);
             } else
                 pet_behavior_wait--;
             // reset timer

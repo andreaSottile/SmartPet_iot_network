@@ -156,6 +156,7 @@ static struct mqtt_connection conn;
 
 mqtt_status_t status_FoodTopic;
 mqtt_status_t statusId_config;
+mqtt_status_t status_Publish;
 char broker_address[CONFIG_IP_ADDR_STR_LEN];
 
 /*---------------------------------------------------------------------------*/
@@ -374,15 +375,23 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
                 }
 
                 if (boot == BOOT_ID_NEGOTIATION) {
-			if(counter == 0){
-				printf("Foodsensor %d: Publishing candidate_id \n", candidateID);
-				// id negotiation: ask controller for Id approval
-				sprintf(app_buffer, "%s %d awakens", NODE_TYPE, candidateID);
-				mqtt_publish(&conn, NULL, TOPIC_ID_CONFIG, (uint8_t *) app_buffer, strlen(app_buffer), MQTT_QOS_LEVEL_0,
-				        MQTT_RETAIN_OFF);
-				counter = 1;
-				etimer_reset(&sub_timer);
-			}
+                    if((counter == 0) || (counter == 1)){
+                        if(counter == 0){
+                        printf("Foodsensor %d: Publishing candidate_id \n", candidateID);
+                        // id negotiation: ask controller for Id approval
+                        sprintf(app_buffer, "%s %d awakens", NODE_TYPE, candidateID);
+                        sprintf(pub_topic, "%s", TOPIC_ID_CONFIG);
+                        printf("%s \n", app_buffer);
+                        counter =1;
+                        }
+                        status_Publish = mqtt_publish(&conn, NULL, pub_topic, (uint8_t *) app_buffer, strlen(app_buffer), MQTT_QOS_LEVEL_0,
+                                MQTT_RETAIN_OFF);
+                        if (status_Publish == 0) {
+                        counter = 2;
+                        etimer_reset(&sub_timer);
+                        }
+                        else{ printf("coda piena");}
+                    }
                 }
 
             }
