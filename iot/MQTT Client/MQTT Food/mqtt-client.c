@@ -167,7 +167,7 @@ static bool filling = false; // actuator status detected on the container
 unsigned short candidateID = 0;
 unsigned short containerID = 0;
 static int meal_size = 30;
-static int meal_charge = 20;
+static int meal_charge = 100;
 static int counter = 0;
 
 /*---------------------------------------------------------------------------*/
