@@ -8,6 +8,13 @@ class Food(models.Model):
     time = models.DateTimeField(auto_now_add=True)
     containerID = models.CharField(max_length=100)
 
+    @classmethod
+    def preprocess_grafana(cls, query_set):
+        result = []
+        for item in query_set:
+            result.append(item)
+        return result
+
 
 class FoodConfig(models.Model):
     containerID = models.CharField(max_length=100)
@@ -38,19 +45,17 @@ class HeartBeatConfig(models.Model):
 
 
 class Hatch(models.Model):
-    nothing = 0
-    inside = 1
-    outside = 2
     time = models.DateTimeField(auto_now_add=True)
     hatchId = models.CharField(max_length=100)
-    DIRECTION_TRIGGER_CHOICES = (
-        (0, 'Nothing'),
-        (1, 'Inside'),
-        (2, 'Outside')
-    )
+    DIRECTION_TRIGGER_CHOICES = [
+        ('Nothing', 'Nothing'),
+        ('Inside', 'Inside'),
+        ('Outside', 'Outside'),
+    ]
+
     direction_Trigger = models.CharField(max_length=10,
                                          choices=DIRECTION_TRIGGER_CHOICES,
-                                         default=0
+                                         default='Nothing'
                                          )
 
 
@@ -64,20 +69,17 @@ class LiveClient(models.Model):
     nodeId = models.IntegerField()
     nodeCoapName = models.CharField(max_length=16, default="")
     nodeCoapAddress = models.CharField(max_length=30, default="")
-    unknown = 0
-    food = 1
-    heartbeat = 2
-    hatch = 3
-    NODE_TYPES = (
-        (unknown, 'unknown'),
-        (food, 'food'),
-        (heartbeat, 'heartbeat'),
-        (hatch, 'hatch')
-    )
+
+    NODE_TYPES = [
+        ('unknown', 'unknown'),
+        ('food', 'food'),
+        ('heartbeat', 'heartbeat'),
+        ( 'hatch', 'hatch')
+    ]
     isFree = models.BooleanField(default=True)
     nodeType = models.CharField(max_length=10,
                                 choices=NODE_TYPES,
-                                default=unknown
+                                default='unknown'
                                 )
     isActuator = models.BooleanField(default=False)
     lastInteraction = models.DateTimeField(auto_now_add=True)
