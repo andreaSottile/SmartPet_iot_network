@@ -4,12 +4,29 @@ from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
 
 from Network_Controller.models import *
+from iot.mqttnode import command_sender
 from iot.network_manager import boot
+from iot.pubsubconfig import *
+
 
 
 def index(request):
     context = {"status": "not-started"}
     return render(request, "index.html", context)
+
+def food_refill_start(containerID):
+    command_sender(containerID, COMMAND_REFILL_START_FOOD, containerID + + " filling")
+def food_refill_stop(containerID):
+
+def hatch_open(hatchID):
+
+def hatch_close(hatchID):
+
+def hatch_config_setPermission(hatchID):
+
+def food_config_setMax(containerID):
+
+def food_config_setMin(containerID):
 
 
 @csrf_exempt
