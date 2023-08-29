@@ -22,13 +22,13 @@
         <!- Sensor - Food ->
         <div class="line" id="set_top_food">
             <label for="threshold_top"></label><input id="threshold_top" value="{{ client.lvlThresholdStart }}">
-            <div class="button"> Set top threshold
+            <div class="button" data-url="{% url 'food_set_max' client.nodeId %}"> Set top threshold
             </div>
         </div>
 
         <div class="line" id="set_bottom_food">
             <label for="threshold_bottom"></label><input id="threshold_bottom" value="{{ client.lvlThresholdStop }}">
-            <div class="button"> Set top threshold
+            <div class="button" data-url="{% url 'food_set_min' client.nodeId %}"> Set bottom threshold
             </div>
         </div>
     {% endif %}
@@ -56,13 +56,13 @@
 {% if node_type == 'heartbeat' %}
   <div class="line" id="set_heartbeat_low">
             <label for="heartbeat_low"></label><input id="heartbeat_low" value="{{ client.low_Threshold }}">
-            <div class="button"> Set lower threshold
+            <div class="button" data-url="{% url 'heartbeat_set_min' client.nodeId %}"> Set lower threshold
             </div>
         </div>
 
         <div class="line" id="set_heartbeat_high">
             <label for="heartbeat_high"></label><input id="heartbeat_high" value="{{ client.high_Threshold }}">
-            <div class="button"> Set upper threshold
+            <div class="button" data-url="{% url 'heartbeat_set_max' client.nodeId %}"> Set upper threshold
             </div>
         </div>
 {% endif %}
