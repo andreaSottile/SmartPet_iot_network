@@ -1,8 +1,8 @@
 import threading
 from iot.COAP_server import CoAPServer
-from iot.data_manager import flush_outdated_data
 from iot.handler_HelperClient import getConnectionHelperClient
 from iot.mqttnode import MqttNode
+from iot.utils import flush_outdated_data
 
 target_host_mqtt = "127.0.0.1"
 target_port_mqtt = 1883

@@ -1,13 +1,11 @@
-from django.db.models import OuterRef, Subquery, Max
 from django.http import JsonResponse
 from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
 
 from Network_Controller.models import *
-from iot.mqttnode import command_sender
-from iot.network_manager import *
+from iot.network_manager import boot
 from iot.pubsubconfig import *
-
+from iot.utils import command_sender
 
 
 def index(request):
@@ -18,28 +16,28 @@ def food_refill_start(containerID):
     pairObject = Pair.objects.filter(nodeIdCOAP=containerID).first()
     if pairObject is not None:
         pairSensor = pairObject.nodeIdMQTT
-        command_sender(mqtt_listener, COMMAND_REFILL_START_FOOD, pairSensor)
+        command_sender(COMMAND_REFILL_START_FOOD, pairSensor)
     else:
         print("Non trovato nodo paired")
 def food_refill_stop(containerID):
     pairObject = Pair.objects.filter(nodeIdCOAP=containerID).first()
     if pairObject is not None:
         pairSensor = pairObject.nodeIdMQTT
-        command_sender(mqtt_listener, COMMAND_REFILL_STOP_FOOD, pairSensor)
+        command_sender(COMMAND_REFILL_STOP_FOOD, pairSensor)
     else:
         print("Non trovato nodo paired")
 def hatch_open(hatchID):
     pairObject = Pair.objects.filter(nodeIdCOAP=hatchID).first()
     if pairObject is not None:
         pairSensor = pairObject.nodeIdMQTT
-        command_sender(mqtt_listener, COMMAND_CLOSE_HATCH, pairSensor)
+        command_sender(COMMAND_CLOSE_HATCH, pairSensor)
     else:
         print("Non trovato nodo paired")
 def hatch_close(hatchID):
     pairObject = Pair.objects.filter(nodeIdCOAP=hatchID).first()
     if pairObject is not None:
         pairSensor = pairObject.nodeIdMQTT
-        command_sender(mqtt_listener, COMMAND_CLOSE_HATCH, pairSensor)
+        command_sender(COMMAND_CLOSE_HATCH, pairSensor)
     else:
         print("Non trovato nodo paired")
 def hatch_allow_open(hatchID):

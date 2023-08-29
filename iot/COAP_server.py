@@ -3,7 +3,7 @@
 from coapthon.server.coap import CoAP
 from coapthon.resources.resource import Resource
 
-from iot.data_manager import register_actuator
+from iot.utils import register_actuator
 
 
 class ResExample(Resource):

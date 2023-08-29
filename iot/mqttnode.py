@@ -2,6 +2,7 @@ import paho.mqtt.client as mqtt
 
 from iot.data_manager import collect_data, register_sensor
 from iot.pubsubconfig import *
+from iot.utils import command_sender
 
 
 def receive(node, topic, msg):
@@ -20,19 +21,7 @@ def receive(node, topic, msg):
         # this is never happening, since i subscribed only topics i can handle
         print("Received message from unexpected topic")
 
-def command_sender(node, rec_msg_code, rec_msg_target):
-    if str(rec_msg_code) == COMMAND_OPEN_HATCH:
-        # globalStatus.setStatusValve(1)
-        node.client.publish(TOPIC_ACTUATOR_HATCH, rec_msg_target + " open")
-    elif str(rec_msg_code) == COMMAND_CLOSE_HATCH:
-        # globalStatus.setStatusValve(0)
-        node.client.publish(TOPIC_ACTUATOR_HATCH, rec_msg_target + " close")
-    elif str(rec_msg_code) == COMMAND_REFILL_START_FOOD:
-        # globalStatus.setStatusValve(1)
-        node.client.publish(TOPIC_ACTUATOR_FOOD, rec_msg_target + " filling")
-    elif str(rec_msg_code) == COMMAND_REFILL_STOP_FOOD:
-        # globalStatus.setStatusValve(0)
-        node.client.publish(TOPIC_ACTUATOR_FOOD, rec_msg_target + " stop")
+
 
 def negotiate_id(node, id_proposed, node_type):
     result_msg = register_sensor(id_proposed, node_type)
