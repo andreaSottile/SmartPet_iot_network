@@ -166,7 +166,7 @@ def check_hatch(hatch_id):
     try:
         latest = Hatch.objects.filter(hatchId=hatch_id).latest("time")
         print(str(latest))
-        print("comparison: "+str(latest.direction_Trigger)+" "+str(Hatch.nothing))
+        print("comparison: " + str(latest.direction_Trigger) + " " + str(Hatch.nothing))
         if str(latest.direction_Trigger) == str(Hatch.nothing):
             print("received trigger 0 from " + str(hatch_id))
             pairObject = Pair.objects.filter(nodeIdMQTT=hatch_id).first()

@@ -1,0 +1,22 @@
+{% load static %}
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Real Time Live Clients</title>
+</head>
+<body>
+    <a href="{% url 'clients' %}"> Refresh </a>
+    <br>
+    <h1>Client List</h1>
+    <ul>
+        {% for client in data %}
+        <li>
+            <a href="{% url 'config_page' client.nodeId client.nodeType client.isActuator %}">
+                Node ID: {{ client.nodeId }}, Last Interaction: {{ client.lastInteraction }},  Node Type: {{ client.nodeType }},  Actuator: {{ client.isActuator }}
+            </a>
+        </li>
+        {% endfor %}
+    </ul>
+    <script src="{% static 'js/script.js' %}"></script>
+</body>
+</html>

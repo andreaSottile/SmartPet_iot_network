@@ -1,0 +1,73 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+
+<h1>Configuration Page for {{ node_type }}</h1>
+
+{% if node_type == 'food' %}
+    {% if is_actuator %}
+        <!- Actuator - Food ->
+        <div class="button">
+            <a href="{% url 'food_start_refill' client.nodeId %}">Refill start</a>
+        </div>
+        <div class="button">
+            <a href="{% url 'food_stop_refilling' client.nodeId %}">Refill stop</a>
+        </div>
+    {% else %}
+        <!- Sensor - Food ->
+        <div class="line" id="set_top_food">
+            <label for="threshold_top"></label><input id="threshold_top" value="{{ client.lvlThresholdStart }}">
+            <div class="button"> Set top threshold
+            </div>
+        </div>
+
+        <div class="line" id="set_bottom_food">
+            <label for="threshold_bottom"></label><input id="threshold_bottom" value="{{ client.lvlThresholdStop }}">
+            <div class="button"> Set top threshold
+            </div>
+        </div>
+    {% endif %}
+{% endif %}
+{% if node_type == 'hatch' %}
+    {% if is_actuator %}
+        <!- Actuator - Hatch ->
+        <div class="button">
+            <a href="{% url 'hatch_open' client.nodeId %}">Open Hatch</a>
+        </div>
+        <div class="button">
+            <a href="{% url 'hatch_close' client.nodeId %}">Close Hatch</a>
+        </div>
+    {% else %}
+        <!- Sensor - Hatch ->
+        <div class="button">
+            <a href="{% url 'hatch_lock' client.nodeId %}">Lock Hatch</a>
+        </div>
+        <div class="button">
+            <a href="{% url 'hatch_unlock' client.nodeId %}">Unlock Hatch</a>
+        </div>
+    {% endif %}
+
+{% endif %}
+{% if node_type == 'heartbeat' %}
+  <div class="line" id="set_heartbeat_low">
+            <label for="heartbeat_low"></label><input id="heartbeat_low" value="{{ client.low_Threshold }}">
+            <div class="button"> Set lower threshold
+            </div>
+        </div>
+
+        <div class="line" id="set_heartbeat_high">
+            <label for="heartbeat_high"></label><input id="heartbeat_high" value="{{ client.high_Threshold }}">
+            <div class="button"> Set upper threshold
+            </div>
+        </div>
+{% endif %}
+<p>Node Type: {{ node_type }}</p>
+<p>Is Actuator: {{ is_actuator }}</p>
+<script src="{% static 'js/script.js' %}"></script>
+</body>
+</html>

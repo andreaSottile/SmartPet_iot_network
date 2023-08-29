@@ -1,5 +1,4 @@
 import threading
-from grafana.grafana_init import *
 from iot.COAP_server import CoAPServer
 from iot.data_manager import flush_outdated_data
 from iot.handler_HelperClient import getConnectionHelperClient
@@ -22,8 +21,8 @@ def boot(req):
     flush_outdated_data()
 
     print("Grafana starting up")
-    create_grafana_data_source(target_host_mqtt, req)
-    create_grafana_dashboard(req)
+    # create_grafana_data_source(target_host_mqtt, req)
+    # create_grafana_dashboard(req)
 
     print("network starting up")
     mqtt_listener = MqttNode()
