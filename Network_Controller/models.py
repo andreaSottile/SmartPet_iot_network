@@ -21,7 +21,7 @@ class FoodConfig(models.Model):
     lvlMax = models.IntegerField(default=1000)
     lvlThresholdStart = models.IntegerField(default=300)
     lvlThresholdStop = models.IntegerField(default=700)
-    lvlMin = models.IntegerField(0)
+    lvlMin = models.IntegerField(default=0)
     defaultMax = 1000
     defaultMin = 0
     defaultThresholdStart = 300

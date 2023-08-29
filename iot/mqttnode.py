@@ -15,7 +15,7 @@ def receive(node, topic, msg):
             return
         # eventually, perform actions triggered by messages
         # if rec_msg_code == 1:
-    command_sender(node, rec_msg_code, rec_msg_target)
+        command_sender(node, rec_msg_code, rec_msg_target)
     else:
         # this is never happening, since i subscribed only topics i can handle
         print("Received message from unexpected topic")
@@ -33,6 +33,7 @@ def command_sender(node, rec_msg_code, rec_msg_target):
     elif str(rec_msg_code) == COMMAND_REFILL_STOP_FOOD:
         # globalStatus.setStatusValve(0)
         node.client.publish(TOPIC_ACTUATOR_FOOD, rec_msg_target + " stop")
+
 def negotiate_id(node, id_proposed, node_type):
     result_msg = register_sensor(id_proposed, node_type)
     node.client.publish(TOPIC_ID_CONFIG, result_msg)
