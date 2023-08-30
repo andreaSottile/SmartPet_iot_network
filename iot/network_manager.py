@@ -63,7 +63,7 @@ def receive(topic, msg):
 
 
 def activate_refiller(actuator_Id):
-    clientCOAP = getConnectionHelperClient()
+    clientCOAP = getConnectionHelperClient(actuator_Id)
     # Send a POST request to actuator (THIS HAS NO EFFECT BESIDE THE OUTPUT LOG)
     response = clientCOAP.post("food", "command= open" + actuator_Id)
     if response.code == 67:
@@ -73,7 +73,7 @@ def activate_refiller(actuator_Id):
 
 
 def close_refiller(actuator_Id):
-    clientCOAP = getConnectionHelperClient()
+    clientCOAP = getConnectionHelperClient(actuator_Id)
     # Send a POST request to actuator (THIS HAS NO EFFECT BESIDE THE OUTPUT LOG)
     response = clientCOAP.post("food", "command= close" + actuator_Id)
     if response.code == 67:
@@ -83,7 +83,7 @@ def close_refiller(actuator_Id):
 
 
 def close_hatch(actuator_Id):
-    clientCOAP = getConnectionHelperClient()
+    clientCOAP = getConnectionHelperClient(actuator_Id)
     # Send a POST request to actuator (THIS HAS NO EFFECT BESIDE THE OUTPUT LOG)
     response = clientCOAP.post("hatch", "command= close" + actuator_Id)
     if response.code == 67:
@@ -111,7 +111,10 @@ def command_sender(rec_msg_code, rec_msg_target):
         # Action: open hatch
     if str(rec_msg_code) == COMMAND_OPEN_HATCH:
         print("sending open hatch command to "+str(rec_msg_target))
-        pair_target = get_pair_object_from_sensor(rec_msg_target)
+        paired, pair_target = get_pair_object_from_sensor(rec_msg_target)
+        if not paired:
+            print("actuator has no partner")
+            return
         done = open_hatch(pair_target)
         if done:
             update_last_interaction(pair_target)
@@ -121,7 +124,10 @@ def command_sender(rec_msg_code, rec_msg_target):
         # Action: close hatch
     elif str(rec_msg_code) == COMMAND_CLOSE_HATCH:
         print("sending close hatch command to " + str(rec_msg_target))
-        pair_target = get_pair_object_from_sensor(rec_msg_target)
+        paired, pair_target = get_pair_object_from_sensor(rec_msg_target)
+        if not paired:
+            print("actuator has no partner")
+            return
         done = close_hatch(pair_target)
         if done:
             update_last_interaction(pair_target)
@@ -130,7 +136,10 @@ def command_sender(rec_msg_code, rec_msg_target):
         # Action: refill food
     elif str(rec_msg_code) == COMMAND_REFILL_START_FOOD:
         print("sending fill food command to " + str(rec_msg_target))
-        pair_target = get_pair_object_from_sensor(rec_msg_target)
+        paired, pair_target = get_pair_object_from_sensor(rec_msg_target)
+        if not paired:
+            print("actuator has no partner")
+            return
         done = activate_refiller(pair_target)
         if done:
             update_last_interaction(pair_target)
@@ -139,7 +148,10 @@ def command_sender(rec_msg_code, rec_msg_target):
         # Action: stop food refill
     elif str(rec_msg_code) == COMMAND_REFILL_STOP_FOOD:
         print("sending stop refilling food command to " + str(rec_msg_target))
-        pair_target = get_pair_object_from_sensor(rec_msg_target)
+        paired, pair_target = get_pair_object_from_sensor(rec_msg_target)
+        if not paired:
+            print("actuator has no partner")
+            return
         done = close_refiller(pair_target)
         if done:
             update_last_interaction(pair_target)
