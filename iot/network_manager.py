@@ -104,10 +104,12 @@ def open_hatch(actuator_Id):
 def command_sender(rec_msg_code, rec_msg_target):
     node = get_mqtt_transceiver()
     if node is None:
+        print("Node"+str*rec_msg_target+"not paired")
         return
 
         # Action: open hatch
     if str(rec_msg_code) == COMMAND_OPEN_HATCH:
+        print("sending open hatch command to "+str(rec_msg_target))
         pair_target = get_pair_object_from_sensor(rec_msg_target)
         done = open_hatch(pair_target)
         if done:
@@ -117,6 +119,7 @@ def command_sender(rec_msg_code, rec_msg_target):
 
         # Action: close hatch
     elif str(rec_msg_code) == COMMAND_CLOSE_HATCH:
+        print("sending close hatch command to " + str(rec_msg_target))
         pair_target = get_pair_object_from_sensor(rec_msg_target)
         done = close_hatch(pair_target)
         if done:
@@ -125,6 +128,7 @@ def command_sender(rec_msg_code, rec_msg_target):
 
         # Action: refill food
     elif str(rec_msg_code) == COMMAND_REFILL_START_FOOD:
+        print("sending fill food command to " + str(rec_msg_target))
         pair_target = get_pair_object_from_sensor(rec_msg_target)
         done = activate_refiller(pair_target)
         if done:
@@ -133,6 +137,7 @@ def command_sender(rec_msg_code, rec_msg_target):
 
         # Action: stop food refill
     elif str(rec_msg_code) == COMMAND_REFILL_STOP_FOOD:
+        print("sending stop refilling food command to " + str(rec_msg_target))
         pair_target = get_pair_object_from_sensor(rec_msg_target)
         done = close_refiller(pair_target)
         if done:

@@ -114,7 +114,7 @@ static uint8_t boot;
 #define BOOT_FAILED           5
 /*---------------------------------------------------------------------------*/
 /* PUBLISH/SUBSCRIBE MESSAGE TEMPLATES */
-#define NODE_TYPE "heart"
+#define NODE_TYPE "heartbeat"
 #define TOPIC_ID_CONFIG "id_config"
 #define TOPIC_SENSOR_DATA "heart_sensor"
 #define PUBLISH_MSG_TEMPLATE "pet:%d;freq:%d"
