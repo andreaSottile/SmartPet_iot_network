@@ -2,13 +2,13 @@ from django.utils import timezone
 
 from Network_Controller.models import *
 from iot.handler_HelperClient import createConnection
-from iot.network_manager import activateRefiller, closeRefiller, closeHatch, openHatch
 from iot.pubsubconfig import *
 import re
 
 
 # MSG TEMPLATE:
 # { type:[Food, Heartbeat, Trapdoor] config:[false,true] arguments:{a:1 b:2 c:3} }
+
 
 def clean_string_to_number(raw_string):
     defined = str(raw_string)
@@ -47,7 +47,7 @@ def save_food(food_level, cid):
     value = clean_string_to_number(food_level)
     f = Food(lvl=value, containerID=cid)
     f.save()
-    updateLastInteraction(cid)
+    update_last_interaction(cid)
 
 
 def save_heartbeat(frequency, pid):
@@ -60,7 +60,7 @@ def save_heartbeat(frequency, pid):
     value = clean_string_to_number(frequency)
     hb = Heartbeat(frequency=value, petID=pid)
     hb.save()
-    updateLastInteraction(pid)
+    update_last_interaction(pid)
 
 
 def save_hatch(direction, wid):
@@ -73,7 +73,7 @@ def save_hatch(direction, wid):
     value = clean_string_to_number(direction)
     w = Hatch(direction_Trigger=value, hatchId=wid)
     w.save()
-    updateLastInteraction(wid)
+    update_last_interaction(wid)
 
 
 def display_alert(msg_content):
@@ -115,23 +115,12 @@ def check_food_level(cid):
 
         # if below required level
         if latest.lvl < start:
-            pairObject = Pair.objects.filter(nodeIdMQTT=cid).first()
-            if pairObject is not None:
-                pairActuator = pairObject.nodeIdCOAP
-                done = activateRefiller(pairActuator)
-                if done:
-                    updateLastInteraction(pairActuator)
             # action: refill target bowl
             return COMMAND_REFILL_START_FOOD, cid
 
         # if above max level
         if latest.lvl > stop:
-            pairObject = Pair.objects.filter(nodeIdMQTT=cid).first()
-            if pairObject is not None:
-                pairActuator = pairObject.nodeIdCOAP
-                done = closeRefiller(pairActuator)
-                if done:
-                    updateLastInteraction(pairActuator)
+            # action: refill target is finished
             return COMMAND_REFILL_STOP_FOOD, cid
 
         # else, no action to do
@@ -166,33 +155,20 @@ def check_hatch(hatch_id):
     try:
         latest = Hatch.objects.filter(hatchId=hatch_id).latest("time")
         print(str(latest))
-        print("comparison: " + str(latest.direction_Trigger) + " " + str(Hatch.nothing))
-        if str(latest.direction_Trigger) == str(Hatch.nothing):
+
+        if "othing" in str(latest.direction_Trigger):
             print("received trigger 0 from " + str(hatch_id))
-            pairObject = Pair.objects.filter(nodeIdMQTT=hatch_id).first()
-            print(str(pairObject))
-            if pairObject is not None:
-                print("paired object")
-                pairActuator = pairObject.nodeIdCOAP
-                done = closeHatch(pairActuator)
-                if done:
-                    updateLastInteraction(pairActuator)
+
             return COMMAND_CLOSE_HATCH, hatch_id
         else:
             print("received positive trigger from " + str(hatch_id))
             if open_permission:
-                pairObject = Pair.objects.filter(nodeIdMQTT=hatch_id).first()
-                if pairObject is not None:
-                    pairActuator = pairObject.nodeIdCOAP
-                    done = openHatch(pairActuator)
-                    if done:
-                        updateLastInteraction(pairActuator)
-                # else, no action to do
+                # open if allowed (else: nothing to do, ignore it)
                 return COMMAND_OPEN_HATCH, hatch_id
 
     except Hatch.DoesNotExist:
         return 0, 0  # no previous record detected, no action to perform
-    # default case, should be unreachable / permission denied: no action to do, hatch stay closed
+    # default case, no action to do, hatch stay closed
     return 0, 0
 
 
@@ -256,7 +232,7 @@ def collect_data(msg_topic, msg_raw):
         display_alert(arg)
         return 0, 0
 
-    updateLastInteraction(target_id)
+    update_last_interaction(target_id)
 
     if msg_topic == TOPIC_SENSOR_FOOD:
         save_food(arg, target_id)
@@ -269,7 +245,7 @@ def collect_data(msg_topic, msg_raw):
         return check_hatch(target_id)
 
 
-def get_COAP_Address_from_ID(nodeID):
+def get_COAP_address_from_id(nodeID):
     nodeCOAP = LiveClient.objects.filter(nodeId=nodeID).first()
     if nodeCOAP is not None:
         return nodeCOAP.nodeCoapAddress
@@ -277,7 +253,7 @@ def get_COAP_Address_from_ID(nodeID):
         return 0
 
 
-def updateLastInteraction(nodeId):
+def update_last_interaction(nodeId):
     client = None
     try:
         client = LiveClient.objects.get(nodeId=nodeId)
@@ -316,7 +292,7 @@ def register_sensor(candidate_id, node_type):
         else:
             # Food/Hatch cases
             # Looking for an unpaired Actuator Node of the same type of the sensor
-            partnerID = lookForPartner(node_type, target="Actuator")
+            partnerID = look_for_partner(node_type, target="Actuator")
             if partnerID > 0:
                 # Found unpaired actuator
                 pair = Pair(nodeIdMQTT=candidate_id, nodeIdCOAP=partnerID)
@@ -328,3 +304,84 @@ def register_sensor(candidate_id, node_type):
                 live = LiveClient(nodeId=candidate_id, nodeType=node_type, isActuator=False, isFree=True)
                 live.save()
         return str(node_type) + " " + str(candidate_id) + " approved"
+
+
+def register_actuator(candidate_id, node_type, node_address):
+    '''
+    Called when an actuator try to register to Controller.
+    There is a check if the Client already exists.
+    :param candidate_id: ID proposed from the Actuator.
+    :param node_type: type of the sensor node.
+    :param node_address: string with the network address
+    :return: confirmation/reject message to actuator for that ID.
+    '''
+    duplicate = LiveClient.objects.filter(nodeId=candidate_id).exists()
+    if duplicate:
+        # rejected candidate_id
+        return str(node_type) + " " + str(candidate_id) + " denied"
+    else:
+        # not a duplicate: register new node
+        now = timezone.now()
+        # Looking for an unpaired Actuator Node of the same type of the sensor
+        partnerID = look_for_partner(node_type, target="Sensor")
+        if partnerID > 0:
+            # Found unpaired actuator
+            pair = Pair(nodeIdMQTT=candidate_id, nodeIdCOAP=partnerID)
+            live = LiveClient(nodeId=candidate_id, nodeType=node_type, isFree=False, isActuator=True,
+                              nodeCoapAddress=node_address, lastInteraction=now)
+            live.save()
+            pair.save()
+        else:
+            #  No compatible unpaired actuator
+            live = LiveClient(nodeId=candidate_id, nodeType=node_type, isActuator=True, isFree=True,
+                              nodeCoapAddress=node_address, lastInteraction=now)
+            live.save()
+        createConnection(candidate_id, node_address)
+        return str(node_type) + " " + str(candidate_id) + " approved"
+
+
+def flush_outdated_data():
+    if HatchConfig.objects.first() is not None:
+        HatchConfig.objects.all().delete()
+    if FoodConfig.objects.first() is not None:
+        FoodConfig.objects.all().delete()
+    if HeartBeatConfig.objects.first() is not None:
+        HeartBeatConfig.objects.all().delete()
+    if LiveClient.objects.first() is not None:
+        LiveClient.objects.all().delete()
+
+
+def look_for_partner(node_type, target):
+    if target == 'Sensor':
+        targetID = LiveClient.objects.filter(nodeType=node_type, isActuator=False, isFree=True).first()
+    elif target == 'Actuator':
+        targetID = LiveClient.objects.filter(nodeType=node_type, isActuator=True, isFree=True).first()
+    else:
+        return 0
+    if targetID is not None:
+        return targetID
+    else:
+        return 0
+
+
+def negotiate_id(node, id_proposed, node_type):
+    result_msg = register_sensor(id_proposed, node_type)
+    node.client.publish(TOPIC_ID_CONFIG, result_msg)
+
+
+def get_pair_object_from_sensor(mqtt_node):
+    pair_object = Pair.objects.filter(nodeIdMQTT=mqtt_node).first()
+
+    if pair_object is not None:
+        return True, pair_object.nodeIdCOAP
+    else:
+        return False, None
+
+
+def get_pair_object_from_actuator(coap_node):
+    pair_object = Pair.objects.filter(nodeIdCOAP=coap_node).first()
+
+    if pair_object is not None:
+        return True, pair_object.nodeIdMQTT
+    else:
+        return False, None

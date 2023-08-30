@@ -1,31 +1,6 @@
 import paho.mqtt.client as mqtt
 
-from iot.data_manager import collect_data, register_sensor
 from iot.pubsubconfig import *
-from iot.utils import command_sender
-
-
-def receive(node, topic, msg):
-    # receive msg from sensor
-    if topic in [TOPIC_SENSOR_HATCH, TOPIC_SENSOR_HEARTBEAT, TOPIC_SENSOR_FOOD]:
-        # read content, save in DB if necessary
-        rec_msg_code, rec_msg_target = collect_data(topic, msg)
-
-        # switch rec_msg_code:
-        if rec_msg_code == 0:  # nothing to do after saving msg in database
-            return
-        # eventually, perform actions triggered by messages
-        # if rec_msg_code == 1:
-        command_sender(node, rec_msg_code, rec_msg_target)
-    else:
-        # this is never happening, since i subscribed only topics i can handle
-        print("Received message from unexpected topic")
-
-
-
-def negotiate_id(node, id_proposed, node_type):
-    result_msg = register_sensor(id_proposed, node_type)
-    node.client.publish(TOPIC_ID_CONFIG, result_msg)
 
 
 class MqttNode:
@@ -37,6 +12,12 @@ class MqttNode:
         on_message: callback function called for published messages
     """
     client = None
+    broker = None
+    receiver = None
+
+    def __init__(self, negotiate_function, receive_function):
+        self.broker = negotiate_function
+        self.receiver = receive_function
 
     def task(self, *args):
         self.client = mqtt.Client()
@@ -66,12 +47,12 @@ class MqttNode:
 
             if msg_fields[2] == "awakens":
                 # new node has connected, waiting for IP
-                negotiate_id(self, id_proposed=msg_fields[1], node_type=msg_fields[0][1:])
+                self.broker(self, id_proposed=msg_fields[1], node_type=msg_fields[0][1:])
             # remote nodes can only publish "awakens" action.
             # this thread (controller) is the only one able to publish other actions
         else:
             # digest message from sensors
-            receive(self, msg.topic, msg.payload)
+            self.receiver(msg.topic, msg.payload)
 
     def on_connect(self, client, userdata, flags, rc):
         if rc == 0:

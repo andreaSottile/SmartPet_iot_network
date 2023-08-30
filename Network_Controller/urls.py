@@ -21,7 +21,7 @@ from . import views
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('network/', views.network_start, name='network'),
-    path('client-nodes/', views.client_list(), name='clients'),
+    path('client-nodes/', views.client_list, name='clients'),
     path('config_page/<str:node_id>/<str:node_type>/<int:is_actuator>/', views.config_page, name='config'),
     path('clientapp/food/refill/start/<str:node_id>', views.food_refill_start, name='food_start_refill'),
     path('clientapp/food/refill/stop/<str:node_id>', views.food_refill_stop, name='food_stop_refilling'),

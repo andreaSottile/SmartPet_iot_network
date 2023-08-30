@@ -1,8 +1,10 @@
 import threading
 from iot.COAP_server import CoAPServer
+from iot.data_manager import negotiate_id, flush_outdated_data, get_pair_object_from_sensor, update_last_interaction, \
+    collect_data
 from iot.handler_HelperClient import getConnectionHelperClient
 from iot.mqttnode import MqttNode
-from iot.utils import flush_outdated_data
+from iot.pubsubconfig import *
 
 target_host_mqtt = "127.0.0.1"
 target_port_mqtt = 1883
@@ -25,7 +27,7 @@ def boot(req):
     # create_grafana_dashboard(req)
 
     print("network starting up")
-    mqtt_listener = MqttNode()
+    mqtt_listener = MqttNode(negotiate_function=negotiate_id, receive_function=receive)
 
     mqtt_thread = threading.Thread(target=mqtt_listener.task, args=(target_host_mqtt, target_port_mqtt), kwargs={})
     mqtt_thread.start()
@@ -35,41 +37,104 @@ def boot(req):
     coap_server_thread.start()
 
 
-def activateRefiller(actuatorId):
+def get_mqtt_transceiver():
+    if mqtt_listener is None:
+        return None
+    else:
+        return mqtt_listener
+
+
+def receive(topic, msg):
+    # receive msg from sensor
+    if topic in [TOPIC_SENSOR_HATCH, TOPIC_SENSOR_HEARTBEAT, TOPIC_SENSOR_FOOD]:
+        # read content, save in DB if necessary
+        rec_msg_code, rec_msg_target = collect_data(topic, msg)
+
+        # switch rec_msg_code:
+        if rec_msg_code == 0:  # nothing to do after saving msg in database
+            return
+            # eventually, perform actions triggered by messages
+            # if rec_msg_code == 1:
+        command_sender(rec_msg_code, rec_msg_target)
+    else:
+        # this is never happening, since i subscribed only topics i can handle
+        print("Received message from unexpected topic")
+
+
+def activate_refiller(actuator_Id):
     clientCOAP = getConnectionHelperClient()
     # Send a POST request to actuator (THIS HAS NO EFFECT BESIDE THE OUTPUT LOG)
-    response = clientCOAP.post("food", "command= open" + actuatorId)
+    response = clientCOAP.post("food", "command= open" + actuator_Id)
     if response.code == 67:
         return 1
     else:
         return 0
 
 
-def closeRefiller(actuatorId):
+def close_refiller(actuator_Id):
     clientCOAP = getConnectionHelperClient()
     # Send a POST request to actuator (THIS HAS NO EFFECT BESIDE THE OUTPUT LOG)
-    response = clientCOAP.post("food", "command= close" + actuatorId)
+    response = clientCOAP.post("food", "command= close" + actuator_Id)
     if response.code == 67:
         return 1
     else:
         return 0
 
 
-def closeHatch(actuatorId):
+def close_hatch(actuator_Id):
     clientCOAP = getConnectionHelperClient()
     # Send a POST request to actuator (THIS HAS NO EFFECT BESIDE THE OUTPUT LOG)
-    response = clientCOAP.post("hatch", "command= close" + actuatorId)
+    response = clientCOAP.post("hatch", "command= close" + actuator_Id)
     if response.code == 67:
         return 1
     else:
         return 0
 
 
-def openHatch(actuatorId):
+def open_hatch(actuator_Id):
     clientCOAP = getConnectionHelperClient()
     # Send a POST request to actuator (THIS HAS NO EFFECT BESIDE THE OUTPUT LOG)
-    response = clientCOAP.post("hatch", "command=open" + actuatorId)
+    response = clientCOAP.post("hatch", "command=open" + actuator_Id)
     if response.code == 67:
         return 1
     else:
         return 0
+
+
+def command_sender(rec_msg_code, rec_msg_target):
+    node = get_mqtt_transceiver()
+    if node is None:
+        return
+
+        # Action: open hatch
+    if str(rec_msg_code) == COMMAND_OPEN_HATCH:
+        pair_target = get_pair_object_from_sensor(rec_msg_target)
+        done = open_hatch(pair_target)
+        if done:
+            update_last_interaction(pair_target)
+
+        node.client.publish(TOPIC_ACTUATOR_HATCH, rec_msg_target + " open")
+
+        # Action: close hatch
+    elif str(rec_msg_code) == COMMAND_CLOSE_HATCH:
+        pair_target = get_pair_object_from_sensor(rec_msg_target)
+        done = close_hatch(pair_target)
+        if done:
+            update_last_interaction(pair_target)
+        node.client.publish(TOPIC_ACTUATOR_HATCH, rec_msg_target + " close")
+
+        # Action: refill food
+    elif str(rec_msg_code) == COMMAND_REFILL_START_FOOD:
+        pair_target = get_pair_object_from_sensor(rec_msg_target)
+        done = activate_refiller(pair_target)
+        if done:
+            update_last_interaction(pair_target)
+        node.client.publish(TOPIC_ACTUATOR_FOOD, rec_msg_target + " filling")
+
+        # Action: stop food refill
+    elif str(rec_msg_code) == COMMAND_REFILL_STOP_FOOD:
+        pair_target = get_pair_object_from_sensor(rec_msg_target)
+        done = close_refiller(pair_target)
+        if done:
+            update_last_interaction(pair_target)
+        node.client.publish(TOPIC_ACTUATOR_FOOD, rec_msg_target + " stop")
