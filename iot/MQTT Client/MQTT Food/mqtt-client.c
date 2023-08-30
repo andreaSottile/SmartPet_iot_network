@@ -405,7 +405,7 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
                 if (filling) {
                     foodLevel += meal_charge;
                 }
-                LOG_INFO("New values: %d\n", foodLevel);
+                LOG_INFO("New values on id %d: %d\n", containerID, foodLevel);
                 rgb_led_set(RGB_LED_GREEN);
                 sprintf(app_buffer, PUBLISH_MSG_TEMPLATE, containerID, foodLevel);
 

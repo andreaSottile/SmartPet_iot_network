@@ -53,7 +53,10 @@
 #define LOG_LEVEL  LOG_LEVEL_RPL
 //TODO DA DEFINIRE INDIRIZZO SERVER
 #define SERVER_EP "coap://[fd00::202:2:2:2]:5683"
+#define TOGGLE_INTERVAL 4
+
 char *service_url = "/hello";
+
 
 #define STATE_INIT            0
 #define STATE_REGISTERING      1
@@ -90,6 +93,7 @@ void rgb_led_set(uint8_t colour) {
 PROCESS(actuator_node,
 "actuator_node");
 AUTOSTART_PROCESSES(&actuator_node);
+static struct etimer et;
 
 /* This function is will be passed to COAP_BLOCKING_REQUEST() to handle responses. */
 void client_chunk_handler(coap_message_t *response) {
@@ -118,7 +122,7 @@ PROCESS_THREAD(actuator_node, ev, data) {
     coap_endpoint_parse(SERVER_EP, strlen(SERVER_EP), &serverCoap);
     coap_init_message(request, COAP_TYPE_CON, COAP_GET, 0);
     coap_set_header_uri_path(request, service_url);
-
+    etimer_set(&et, TOGGLE_INTERVAL * CLOCK_SECOND);
     rgb_led_set(RGB_LED_GREEN);
 
 
@@ -133,6 +137,16 @@ PROCESS_THREAD(actuator_node, ev, data) {
             coap_set_payload(request, (uint8_t *) msg, sizeof(msg) - 1);
             COAP_BLOCKING_REQUEST(&serverCoap, request, client_chunk_handler);
             LOG_INFO("--Node Registering--\n");
+        }
+        if(etimer_expired(&et)) {
+            if(status == STATE_REGISTERED){
+                char msg[32];
+                    snprintf(msg, sizeof(msg),"food_%d", self_id);
+                    coap_set_payload(request, (uint8_t *) msg, sizeof(msg) - 1);
+                    COAP_BLOCKING_REQUEST(&serverCoap, request, client_chunk_handler);
+                    LOG_INFO("--%d Keepalive--\n", self_id);
+                    etimer_reset(&et);
+            }
         }
         PROCESS_WAIT_EVENT();
 

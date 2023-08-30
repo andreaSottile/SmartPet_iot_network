@@ -356,7 +356,7 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
                 // simulate random change in heartbeat
                 heartbeat = (int) random_rand() % 150;
                 heartbeat += 40;
-                LOG_INFO("Heartbeat value: %d\n", heartbeat);
+                LOG_INFO("Heartbeat %d value: %d\n", tagId, heartbeat);
 
                 sprintf(pub_topic, "%s", TOPIC_SENSOR_DATA);
 
