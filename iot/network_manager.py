@@ -45,6 +45,7 @@ def get_mqtt_transceiver():
 
 
 def receive(topic, msg):
+    print("received msg: "+str(msg))
     # receive msg from sensor
     if topic in [TOPIC_SENSOR_HATCH, TOPIC_SENSOR_HEARTBEAT, TOPIC_SENSOR_FOOD]:
         # read content, save in DB if necessary
