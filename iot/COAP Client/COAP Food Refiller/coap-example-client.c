@@ -77,9 +77,10 @@ void client_chunk_handler(coap_message_t *response) {
 
     if (response == NULL) {
         LOG_INFO("Request timed out");
+        printf("risposta null \n");
         return;
     }
-
+    printf("dopo response \n");
     int len = coap_get_payload(response, &chunk);
     LOG_INFO("|%.*s \n", len, (char *) chunk);
 
@@ -103,7 +104,7 @@ PROCESS_THREAD(actuator_node, ev, data) {
 
     while (1) {
         PROCESS_YIELD();
-        if(state == STATE_INIT){
+        if((state == STATE_INIT)||(state == STATE_REGISTERING)){
             // In a real application, MAC address is to be used instead of random
             printf("Food Actuator: init \n");
             self_id = 501 + (int) random_rand() % 500;
@@ -114,6 +115,7 @@ PROCESS_THREAD(actuator_node, ev, data) {
             coap_set_payload(request, (uint8_t *) msg, sizeof(msg) - 1);
             COAP_BLOCKING_REQUEST(&serverCoap, request, client_chunk_handler);
             LOG_INFO("--Node Registering--\n");
+            printf("dopo blocking request \n");
         }
         if(etimer_expired(&et)) {
             if(state == STATE_REGISTERED){
@@ -125,8 +127,6 @@ PROCESS_THREAD(actuator_node, ev, data) {
             }
             etimer_reset(&et);
         }
-        PROCESS_WAIT_EVENT();
-
         //WORK PHASE: there is no actuator in the simulation
     }
 
