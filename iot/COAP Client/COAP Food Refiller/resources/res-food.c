@@ -32,19 +32,44 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "../app_var.h"
 #include "coap-engine.h"
 #include "contiki.h"
 #include "dev/leds.h"
 #include "os/dev/serial-line.h"
 #include "coap-observe.h"
-#include "dev/etc/rgb-led/rgb-led.h"
 
 
 /* Log configuration */
 #include "sys/log.h"
 #define LOG_MODULE "App"
 #define LOG_LEVEL LOG_LEVEL_APP
+int status=0;
+
+/*---------------------------------------------------------------------------*/
+/* Led manipulation */
+#define RGB_LED_RED     1
+#define RGB_LED_GREEN   2
+#define RGB_LED_BLUE    4
+#define RGB_LED_MAGENTA (RGB_LED_RED | RGB_LED_BLUE)
+#define RGB_LED_YELLOW  (RGB_LED_RED | RGB_LED_GREEN)
+#define RGB_LED_CYAN    (RGB_LED_GREEN | RGB_LED_BLUE )
+#define RGB_LED_WHITE   (RGB_LED_RED | RGB_LED_GREEN | RGB_LED_BLUE)
+
+void rgb_led_off(void) {
+    leds_off(LEDS_ALL);
+}
+
+void rgb_led_set(uint8_t colour) {
+    leds_mask_t leds =
+            ((colour & RGB_LED_RED) ? LEDS_RED : LEDS_COLOUR_NONE) |
+            ((colour & RGB_LED_GREEN) ? LEDS_GREEN : LEDS_COLOUR_NONE) |
+            ((colour & RGB_LED_BLUE) ? LEDS_BLUE : LEDS_COLOUR_NONE);
+
+    leds_off(LEDS_ALL);
+    leds_on(leds);
+}
+
+/*---------------------------------------------------------------------------*/
 
 static void res_get_handler(coap_message_t *request, coap_message_t *response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset);
 static void res_event_handler(void);
@@ -83,35 +108,25 @@ static void res_post_handler(coap_message_t *request, coap_message_t *response, 
   LOG_INFO("post");
   if((len = coap_get_post_variable(request, "command", &command))) {
     LOG_DBG("command_food_refiller %s\n", command);
-
-    // 0 => close
-    // 1 => watering 
-    // 2 => recharging
-    if(strncmp(command, "0", len) == 0) {
-      LOG_INFO("0");
-      rgb_led_set(RGB_LED_YELLOW);
+    // status == 0 (food refiller close)
+    if (strncmp(command, "0", len) == 0){
+      LOG_INFO("close");
       coap_set_status_code(response,VALID_2_03);
+      rgb_led_set(RGB_LED_RED);
       status = 0;
       success = 1;
-    } else if(strncmp(command, "1", len) == 0) {
-      LOG_INFO("1");
-      rgb_led_set(RGB_LED_GREEN);
-      if(status == 0){
-        coap_set_status_code(response,VALID_2_03);
-        status = 1;
-        success = 1;
-      }
-    } 
-    else if(strncmp(command, "2", len) == 0) {
-      LOG_INFO("2");
-      rgb_led_set(RGB_LED_BLUE);
-      if(status == 0){
-        coap_set_status_code(response,VALID_2_03);
-        status = 2;
-        success = 1;
-      }
     }
-  } if(!success) {
+    // status == 1 (food refiller open)
+    else if (strncmp(command, "1", len) == 0){
+      LOG_INFO("open");
+      coap_set_status_code(response,VALID_2_03);
+      rgb_led_set(RGB_LED_GREEN);
+      status = 1;
+      success = 1;
+    }
+  }
+
+  if (!success){
     coap_set_status_code(response, BAD_REQUEST_4_00);
   }
 }
