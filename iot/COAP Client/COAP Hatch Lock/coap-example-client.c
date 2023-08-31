@@ -53,7 +53,7 @@
 #define LOG_LEVEL  LOG_LEVEL_RPL
 //TODO DA DEFINIRE INDIRIZZO SERVER
 #define SERVER_EP "coap://[fd00::202:2:2:2]:5683"
-char *service_url = "/hello";
+char *service_url = "hello";
 #define TOGGLE_INTERVAL 4
 
 
@@ -103,6 +103,7 @@ PROCESS_THREAD(actuator_node, ev, data)
 
   
   while(1) {
+    PROCESS_YIELD();
     if(state == STATE_INIT){
     // In a real application, MAC address is to be used instead of random
         printf("Hatch Actuator: init \n");
@@ -125,7 +126,6 @@ PROCESS_THREAD(actuator_node, ev, data)
             }
             etimer_reset(&et);
         }
-    PROCESS_WAIT_EVENT();
 
     //WORK PHASE: there is no actuator in the simulation
   }

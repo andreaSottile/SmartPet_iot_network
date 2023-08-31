@@ -24,4 +24,4 @@ class ResExample(Resource):
 class CoAPServer(CoAP):
     def __init__(self, host, port):
         CoAP.__init__(self, (host, port), False)
-        self.add_resource("hello/", ResExample())
+        self.add_resource("hello", ResExample())

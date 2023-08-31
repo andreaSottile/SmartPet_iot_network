@@ -55,7 +55,7 @@
 #define SERVER_EP "coap://[fd00::202:2:2:2]:5683"
 #define TOGGLE_INTERVAL 4
 
-char *service_url = "/hello";
+char *service_url = "hello";
 
 
 #define STATE_INIT            0
@@ -102,6 +102,7 @@ PROCESS_THREAD(actuator_node, ev, data) {
 
 
     while (1) {
+        PROCESS_YIELD();
         if(state == STATE_INIT){
             // In a real application, MAC address is to be used instead of random
             printf("Food Actuator: init \n");
