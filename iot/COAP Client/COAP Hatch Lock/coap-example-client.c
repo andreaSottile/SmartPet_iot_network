@@ -60,35 +60,11 @@ char *service_url = "/hello";
 #define STATE_INIT            0
 #define STATE_REGISTERING      1
 #define STATE_REGISTERED       2
-int status = 0;
+int state = 0;
 int self_id;
 char *res_name;
 extern coap_resource_t res_status;
-/*---------------------------------------------------------------------------*/
-/* Led manipulation */
-#define RGB_LED_RED     1
-#define RGB_LED_GREEN   2
-#define RGB_LED_BLUE    4
-#define RGB_LED_MAGENTA (RGB_LED_RED | RGB_LED_BLUE)
-#define RGB_LED_YELLOW  (RGB_LED_RED | RGB_LED_GREEN)
-#define RGB_LED_CYAN    (RGB_LED_GREEN | RGB_LED_BLUE )
-#define RGB_LED_WHITE   (RGB_LED_RED | RGB_LED_GREEN | RGB_LED_BLUE)
 
-void rgb_led_off(void) {
-    leds_off(LEDS_ALL);
-}
-
-void rgb_led_set(uint8_t colour) {
-    leds_mask_t leds =
-            ((colour & RGB_LED_RED) ? LEDS_RED : LEDS_COLOUR_NONE) |
-            ((colour & RGB_LED_GREEN) ? LEDS_GREEN : LEDS_COLOUR_NONE) |
-            ((colour & RGB_LED_BLUE) ? LEDS_BLUE : LEDS_COLOUR_NONE);
-
-    leds_off(LEDS_ALL);
-    leds_on(leds);
-}
-
-/*---------------------------------------------------------------------------*/
 PROCESS(actuator_node, "actuator_node");
 AUTOSTART_PROCESSES(&actuator_node);
 static struct etimer et;
@@ -105,8 +81,8 @@ void client_chunk_handler(coap_message_t *response)
 	int len = coap_get_payload(response, &chunk);
 	LOG_INFO("|%.*s \n", len, (char *)chunk);
 
-    if (status == STATE_REGISTERING) {
-        status = STATE_REGISTERED;
+    if (state == STATE_REGISTERING) {
+        state = STATE_REGISTERED;
     }
 
 }
@@ -114,10 +90,9 @@ void client_chunk_handler(coap_message_t *response)
 
 PROCESS_THREAD(actuator_node, ev, data)
 {
+  PROCESS_BEGIN();
   static coap_endpoint_t serverCoap;
   static coap_message_t request[1];
-
-  PROCESS_BEGIN();
   LOG_INFO("Starting actuator node\n");
   coap_activate_resource(&res_status, "hatch");
   coap_endpoint_parse(SERVER_EP, strlen(SERVER_EP), &serverCoap);
@@ -128,26 +103,27 @@ PROCESS_THREAD(actuator_node, ev, data)
 
   
   while(1) {
-    if(status == STATE_INIT){
+    if(state == STATE_INIT){
     // In a real application, MAC address is to be used instead of random
+        printf("Hatch Actuator: init \n");
         self_id = 501 + (int) random_rand() % 500;
         char msg[32];
         snprintf(msg, sizeof(msg),"hatch_%d", self_id);
-
-        status = STATE_REGISTERING;
+        printf("Hatch Actuator %d: Communicating id \n", self_id);
+        state = STATE_REGISTERING;
         coap_set_payload(request, (uint8_t *) msg, sizeof(msg) - 1);
         COAP_BLOCKING_REQUEST(&serverCoap, request, client_chunk_handler);
         LOG_INFO("--Node Registering--\n");
         }
 	    if(etimer_expired(&et)) {
-            if(status == STATE_REGISTERED){
+            if(state == STATE_REGISTERED){
                 char msg[32];
                     snprintf(msg, sizeof(msg),"food_%d", self_id);
                     coap_set_payload(request, (uint8_t *) msg, sizeof(msg) - 1);
                     COAP_BLOCKING_REQUEST(&serverCoap, request, client_chunk_handler);
                     LOG_INFO("--%d Keepalive--\n", self_id);
-                    etimer_reset(&et);
             }
+            etimer_reset(&et);
         }
     PROCESS_WAIT_EVENT();
 
