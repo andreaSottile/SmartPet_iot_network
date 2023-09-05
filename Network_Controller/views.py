@@ -13,71 +13,71 @@ def index(request):
     return render(request, "index.html", context)
 
 
-def food_refill_start(containerID):
-    paired, pair_object = get_pair_object_from_actuator(containerID)
+def food_refill_start(node_id):
+    paired, pair_object = get_pair_object_from_actuator(node_id)
     if paired:
         command_sender(COMMAND_REFILL_START_FOOD, pair_object)
     else:
         print("Non trovato nodo paired")
 
 
-def food_refill_stop(containerID):
-    paired, pair_object = get_pair_object_from_actuator(containerID)
+def food_refill_stop(node_id):
+    paired, pair_object = get_pair_object_from_actuator(node_id)
     if paired:
         command_sender(COMMAND_REFILL_STOP_FOOD, pair_object)
     else:
         print("Non trovato nodo paired")
 
 
-def hatch_open(hatchID):
-    paired, pair_object = get_pair_object_from_actuator(hatchID)
+def hatch_open(node_id):
+    paired, pair_object = get_pair_object_from_actuator(node_id)
     if paired:
         command_sender(COMMAND_CLOSE_HATCH, pair_object)
     else:
         print("Non trovato nodo paired")
 
 
-def hatch_close(hatchID):
-    paired, pair_object = get_pair_object_from_actuator(hatchID)
+def hatch_close(node_id):
+    paired, pair_object = get_pair_object_from_actuator(node_id)
     if paired:
         command_sender(COMMAND_CLOSE_HATCH, pair_object)
     else:
         print("Non trovato nodo paired")
 
 
-def hatch_allow_open(hatchID):
-    hatch = HatchConfig.objects.get(hatchId=hatchID)
+def hatch_allow_open(node_id):
+    hatch = HatchConfig.objects.get(hatchId=node_id)
     hatch.allowOpen = True;
     hatch.save()
 
 
-def hatch_forbid_open(hatchID):
-    hatch = HatchConfig.objects.get(hatchId=hatchID)
+def hatch_forbid_open(node_id):
+    hatch = HatchConfig.objects.get(hatchId=node_id)
     hatch.allowOpen = False;
     hatch.save()
 
 
-def threshold_max(containerID, lvl):
-    food = FoodConfig.objects.get(containerID=containerID)
-    food.lvlThresholdStop = lvl;
+def threshold_max(node_id, value):
+    food = FoodConfig.objects.get(containerID=node_id)
+    food.lvlThresholdStop = value;
     food.save()
 
 
-def threshold_min(containerID, lvl):
-    food = FoodConfig.objects.get(containerID=containerID)
-    food.lvlThresholdStart = lvl;
+def threshold_min(node_id, value):
+    food = FoodConfig.objects.get(containerID=node_id)
+    food.lvlThresholdStart = value;
     food.save()
 
 
-def heartbeat_max(petID, lvl):
-    heartbeat = HeartBeatConfig.objects.get(petID=petID)
-    heartbeat.high_Threshold = lvl;
+def heartbeat_max(node_id, value):
+    heartbeat = HeartBeatConfig.objects.get(petID=node_id)
+    heartbeat.high_Threshold = value;
     heartbeat.save()
 
 
-def heartbeat_min(petID, lvl):
-    heartbeat = HeartBeatConfig.objects.get(petID=petID)
-    heartbeat.low_Threshold = lvl;
+def heartbeat_min(node_id, value):
+    heartbeat = HeartBeatConfig.objects.get(petID=node_id)
+    heartbeat.low_Threshold = value;
     heartbeat.save()
 
 
