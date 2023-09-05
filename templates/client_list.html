@@ -11,7 +11,7 @@
     <ul>
         {% for client in data %}
         <li>
-            <a href="{% url 'config_page' client.nodeId client.nodeType client.isActuator %}">
+            <a href="{% url 'config' client.nodeId client.nodeType %}">
                 Node ID: {{ client.nodeId }}, Last Interaction: {{ client.lastInteraction }},  Node Type: {{ client.nodeType }},  Actuator: {{ client.isActuator }}
             </a>
         </li>

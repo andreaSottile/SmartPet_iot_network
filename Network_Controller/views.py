@@ -115,11 +115,10 @@ def client_list(request):
     return render(request, "client_list.html", context)
 
 
-def config_page(request, node_id, node_type, is_actuator):
+def config_page(request, node_id, node_type):
     context = {
         'client': LiveClient.objects.get(node_id=node_id),
         'node_id': node_id,
-        'node_type': node_type,
-        'is_actuator': is_actuator,
+        'node_type': node_type
     }
     return render(request, "config.html", context)
