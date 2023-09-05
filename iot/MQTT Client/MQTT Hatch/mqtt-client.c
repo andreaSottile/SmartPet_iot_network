@@ -461,6 +461,16 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
                         }
                         else{ printf("Wait to publish because the Client queue is full \n");}
                     }
+                      if ( counter >= 2) {
+                    // published candidate_id, waiting for answer
+                        counter ++;
+                        printf("Node %d still waiting for id negotiation \n", candidateID);
+                        if (counter > 5) {
+                            // wait is too long. controller probably forgot about me.
+                            counter = 0;
+                            printf("Exceeded idle time for %d; restarting id negotiation \n", candidateID);
+                        }
+                    }
                 }
 
             }
