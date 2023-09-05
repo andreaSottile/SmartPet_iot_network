@@ -173,7 +173,7 @@ PROCESS(mqtt_client_process, "MQTT Client-hatch");
 int counter;
 int flag_for_timer;
 unsigned short hatchId = 0;
-unsigned short candidateId = 0;
+unsigned short candidateID = 0;
 
 static bool hatch_open = false;
 unsigned short int currentPetLocation = TRIGGER_NONE;
@@ -189,9 +189,9 @@ static void pub_handler(const char *topic, uint16_t topic_len, const uint8_t *ch
     if (strcmp(topic, TOPIC_ID_CONFIG) == 0)
         // received answer during Id negotiation
     {
-        snprintf(msg_template, sizeof(msg_template), "%s %d approved", NODE_TYPE, candidateId);
+        snprintf(msg_template, sizeof(msg_template), "%s %d approved", NODE_TYPE, candidateID);
         if (strcmp((const char *) chunk, msg_template) == 0) { // controlled accepted Id proposal
-            hatchId = candidateId;
+            hatchId = candidateID;
             mqtt_unsubscribe(&conn, NULL, TOPIC_ID_CONFIG);
 
            	state = STATE_PRESUBSCRIBED;
@@ -200,7 +200,7 @@ static void pub_handler(const char *topic, uint16_t topic_len, const uint8_t *ch
             printf("boot %d, state %d \n", boot, state);
 
         } else {
-            snprintf(msg_template, sizeof(msg_template), "%s %d denied", NODE_TYPE, candidateId);
+            snprintf(msg_template, sizeof(msg_template), "%s %d denied", NODE_TYPE, candidateID);
             if (strcmp((const char *) chunk, msg_template) == 0) { // controlled rejected Id proposal
                 boot = BOOT_ID_DENIED;
                 printf("Hatch sensor: Id Denied \n");
@@ -432,13 +432,13 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
                         LOG_ERR("Tried to subscribe but command queue was full!\n");
                         PROCESS_EXIT();
                         }
-                    candidateId = 1 + (int) random_rand() % 100;
+                    candidateID = 1 + (int) random_rand() % 100;
                     boot = BOOT_ID_NEGOTIATION;
                 }
                 if (boot == BOOT_ID_DENIED) {
-                    printf("Hatch sensor %d: Id Denied\n", candidateId);
+                    printf("Hatch sensor %d: Id Denied\n", candidateID);
                     // Id negotiation failed, must repeat it
-                    candidateId = 1 + (int) random_rand() % 100;
+                    candidateID = 1 + (int) random_rand() % 100;
                     boot = BOOT_ID_NEGOTIATION;
                     printf("Hatch sensor boot: %d\n", boot);
                     counter=0;
@@ -446,9 +446,9 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
                 if (boot == BOOT_ID_NEGOTIATION) {
                     if((counter == 0) || (counter == 1)){
                         if(counter == 0){
-                            printf("Hatch sensor %d: Publishing candidate_id \n", candidateId);
+                            printf("Hatch sensor %d: Publishing candidate_id \n", candidateID);
                             // id negotiation: ask controller for Id approval
-                            sprintf(app_buffer, "%s %d awakens", NODE_TYPE, candidateId);
+                            sprintf(app_buffer, "%s %d awakens", NODE_TYPE, candidateID);
                             sprintf(pub_topic, "%s", TOPIC_ID_CONFIG);
                             printf("%s \n", app_buffer);
                             counter =1;
