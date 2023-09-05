@@ -29,7 +29,10 @@ document.addEventListener("DOMContentLoaded", function () {
         // Recuperare l'url dal data attribute del div
         var url = this.getAttribute("data-url");
         // Invocare la funzione sendPostRequest con l'id dell'input e l'url recuperato
-        sendPostRequest("threshold_top", url);
+
+        var val = document.getElementById("threshold_top").value;
+        console.log(url+"/"+val)
+        sendPostRequest("threshold_top", url+"/"+val);
     });
 
     // Aggiungere un listener per il click sul div con classe "button" dentro il div con id "set_bottom_food"
@@ -37,7 +40,10 @@ document.addEventListener("DOMContentLoaded", function () {
         // Recuperare l'url dal data attribute del div
         var url = this.getAttribute("data-url");
         // Invocare la funzione sendPostRequest con l'id dell'input e l'url recuperato
-        sendPostRequest("threshold_bottom", url);
+
+        var val = document.getElementById("threshold_bottom").value;
+        console.log(url+"/"+val)
+        sendPostRequest("threshold_bottom", url+"/"+val);
     });
 
     // Aggiungere un listener per il click sul div con classe "button" dentro il div con id "set_heartbeat_low"
@@ -45,7 +51,9 @@ document.addEventListener("DOMContentLoaded", function () {
         // Recuperare l'url dal data attribute del div
         var url = this.getAttribute("data-url");
         // Invocare la funzione sendPostRequest con l'id dell'input e l'url recuperato
-        sendPostRequest("heartbeat_low", url);
+          var val = document.getElementById("heartbeat_low").value;
+        console.log(url+"/"+val)
+        sendPostRequest("heartbeat_low", url+"/"+val);
     });
 
     // Aggiungere un listener per il click sul div con classe "button" dentro il div con id "set_heartbeat_high"
@@ -53,7 +61,9 @@ document.addEventListener("DOMContentLoaded", function () {
         // Recuperare l'url dal data attribute del div
         var url = this.getAttribute("data-url");
         // Invocare la funzione sendPostRequest con l'id dell'input e l'url recuperato
-        sendPostRequest("heartbeat_high", url);
+          var val = document.getElementById("heartbeat_high").value;
+        console.log(url+"/"+val)
+        sendPostRequest("heartbeat_high", url+"/"+val);
     });
 
 });

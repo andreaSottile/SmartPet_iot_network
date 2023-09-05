@@ -111,13 +111,17 @@ def real_time_live_clients(request):
 
 
 def client_list(request):
-    context = {"data": real_time_live_clients(request)}
+    clients = LiveClient.objects.order_by('-lastInteraction')[:100].values('nodeId', 'nodeCoapName', 'nodeCoapAddress',
+                                                                           'nodeType', 'isFree', 'isActuator',
+                                                                           'lastInteraction')
+    print(clients)
+    context = {"data": clients}
     return render(request, "client_list.html", context)
 
 
 def config_page(request, node_id, node_type):
     context = {
-        'client': LiveClient.objects.get(node_id=node_id),
+        'client': LiveClient.objects.get(nodeId=node_id),
         'node_id': node_id,
         'node_type': node_type
     }
