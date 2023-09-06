@@ -7,7 +7,6 @@ from iot.data_manager import register_actuator
 
 
 class ResExample(Resource):
-
     def __init__(self, name="ResExample", coap_server=None):
         super(ResExample, self).__init__(name, coap_server, visible=True, observable=True, allow_children=True)
         self.payload = "Basic Resource"
@@ -22,6 +21,26 @@ class ResExample(Resource):
 
 
 class CoAPServer(CoAP):
-    def __init__(self, host, port):
-        CoAP.__init__(self, (host, port), False)
+    host_address = None
+    port_address = None
+    multicast_setting = False
+
+    def __init__(self, host, port, multicast=False):
+        self.host_address = host
+        self.port_address = port
+        self.multicast_setting = multicast
+        CoAP.__init__(self, (host, port), multicast)
         self.add_resource("hello", ResExample())
+
+        print("CoAP Server start on " + host + ":" + str(port))
+        print(self.root.dump())
+
+    def start_server(self):
+        try:
+            print("COAP Server Listening")
+            self.listen(30)
+            print("COAP server STOPPED listening")
+        except KeyboardInterrupt:
+            print("Server Shutdown")
+            self.close()
+            print("Exiting...")

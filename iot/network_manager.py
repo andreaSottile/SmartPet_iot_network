@@ -12,7 +12,7 @@ mqtt_listener = None
 mqtt_thread = None
 coap_listener = 0  # CoapNode()
 coap_thread = None
-COAP_Server_ip = "0.0.0.0"
+COAP_Server_ip = "::"
 COAP_Server_port = 5683
 
 
@@ -33,19 +33,16 @@ def boot(req):
     mqtt_thread.start()
 
     coap_server = CoAPServer(COAP_Server_ip, COAP_Server_port)
-    coap_server_thread = threading.Thread(target=coap_server.listen, args=(), kwargs={})
+    coap_server_thread = threading.Thread(target=coap_server.start_server, args=(), kwargs={})
     coap_server_thread.start()
 
 
 def get_mqtt_transceiver():
-    if mqtt_listener is None:
-        return None
-    else:
-        return mqtt_listener
+    return mqtt_listener
 
 
 def receive(topic, msg):
-    print("received msg: "+str(msg))
+    print("received msg: " + str(msg))
     # receive msg from sensor
     if topic in [TOPIC_SENSOR_HATCH, TOPIC_SENSOR_HEARTBEAT, TOPIC_SENSOR_FOOD]:
         # read content, save in DB if necessary
@@ -105,12 +102,12 @@ def open_hatch(actuator_Id):
 def command_sender(rec_msg_code, rec_msg_target):
     node = get_mqtt_transceiver()
     if node is None:
-        print("Node"+str*rec_msg_target+"not paired")
+        print("Node" + str * rec_msg_target + "not paired")
         return
 
         # Action: open hatch
     if str(rec_msg_code) == COMMAND_OPEN_HATCH:
-        print("sending open hatch command to "+str(rec_msg_target))
+        print("sending open hatch command to " + str(rec_msg_target))
         paired, pair_target = get_pair_object_from_sensor(rec_msg_target)
         if not paired:
             print("actuator has no partner")

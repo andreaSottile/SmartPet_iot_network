@@ -67,10 +67,11 @@ document.addEventListener("DOMContentLoaded", function () {
     if (heartbeat_high != null) {
         heartbeat_high.addEventListener("click", function () {
             // Recuperare l'url dal data attribute del div
-            var url = this.getAttribute("data-url");
+            const url = "clientapp/heartbeat/set/max/";
+            let my_id = 0; //TODO  per tutti
             // Invocare la funzione sendPostRequest con l'id dell'input e l'url recuperato
             var val = document.getElementById("heartbeat_high").value;
-            console.log(url + "/" + val)
+            console.log(url + "/" + my_id + "/" + val)
             sendPostRequest("heartbeat_high", url + "/" + val);
         });
     }
