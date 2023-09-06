@@ -12,7 +12,7 @@ mqtt_listener = None
 mqtt_thread = None
 coap_listener = 0  # CoapNode()
 coap_thread = None
-COAP_Server_ip = "0.0.0.0"
+COAP_Server_ip = "::1"
 COAP_Server_port = 5683
 
 
