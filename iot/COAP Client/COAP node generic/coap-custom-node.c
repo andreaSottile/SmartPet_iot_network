@@ -110,7 +110,7 @@ int main() {
 
         if(time_counter<0){
             time_counter = 0;
-            state = STATE_INIT;
+            status = STATE_INIT;
             etimer_set(&et, CLOCK_SECOND);
          }
         if(etimer_expired(&et)) {
