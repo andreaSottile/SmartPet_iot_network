@@ -54,13 +54,12 @@
 #define TOGGLE_INTERVAL    (10 * CLOCK_SECOND)
 
 
-char *service_url = "/hello";
+char *service_url = "hello";
 
-
+static uint8_t state;
 #define STATE_INIT            0
 #define STATE_REGISTERING      1
 #define STATE_REGISTERED       2
-int state = 0;
 int self_id;
 char *res_name;
 extern coap_resource_t res_status;
@@ -91,9 +90,11 @@ void client_chunk_handler(coap_message_t *response) {
 
 PROCESS_THREAD(actuator_node, ev, data) {
     static coap_endpoint_t serverCoap;
-    static coap_message_t request[1];PROCESS_BEGIN();
+    static coap_message_t request[1];
     button_hal_button_t *button;
     button = button_hal_get_by_index(0);
+    PROCESS_BEGIN();
+
     LOG_INFO("Starting actuator node\n");
     char msg[32];
     state = STATE_INIT;
@@ -105,21 +106,22 @@ PROCESS_THREAD(actuator_node, ev, data) {
     if(button) {
         // Prints all the information about the button
         printf("%s on pin %u with ID=0, Logic=%s, Pull=%s\n",
-        BUTTON_HAL_GET_DESCRIPTION(btn), button->pin,
+        BUTTON_HAL_GET_DESCRIPTION(button), button->pin,
         button->negative_logic ? "Negative" : "Positive",
         button->pull == GPIO_HAL_PIN_CFG_PULL_UP ? "Pull Up" : "Pull Down");
        }
     while (1) {
         PROCESS_YIELD();
+        printf("\n--state in yield %d--\n", state);
         if(ev == button_hal_press_event) {
-            btn = (button_hal_button_t *)data; // In the data field there is pointer to the button
+            button = (button_hal_button_t *)data; // In the data field there is pointer to the button
             // DO ANY ACTION
-            printf("Press event (%s)\n", BUTTON_HAL_GET_DESCRIPTION(btn));
+            printf("Press event (%s)\n", BUTTON_HAL_GET_DESCRIPTION(button));
             printf("\n--state in press button %d--\n", state);
             }
         if(ev == button_hal_release_event) {
-            btn = (button_hal_button_t *)data;
-            printf("Release event (%s)\n", BUTTON_HAL_GET_DESCRIPTION(btn));
+            button = (button_hal_button_t *)data;
+            printf("Release event (%s)\n", BUTTON_HAL_GET_DESCRIPTION(button));
             printf("\n--state in release button %d--\n", state);
             self_id = 501 + (int) random_rand() % 500;
             snprintf(msg, sizeof(msg),"food_%d", self_id);
@@ -131,6 +133,7 @@ PROCESS_THREAD(actuator_node, ev, data) {
             coap_set_payload(request, (uint8_t *) msg, sizeof(msg) - 1);
             COAP_BLOCKING_REQUEST(&serverCoap, request, client_chunk_handler);}
         if(etimer_expired(&et)) {
+            etimer_reset(&et);
             printf("\n--state on periodic timer %d--\n", state);
             if((state == STATE_INIT)||(state == STATE_REGISTERING)){
             // In a real application, MAC address is to be used instead of random
@@ -155,7 +158,7 @@ PROCESS_THREAD(actuator_node, ev, data) {
                     LOG_INFO("--%d Keepalive--\n", self_id);
             }
             printf("\n--reset Timer--\n");
-            etimer_reset(&et);
+
         }
         //WORK PHASE: there is no actuator in the simulation
     }
