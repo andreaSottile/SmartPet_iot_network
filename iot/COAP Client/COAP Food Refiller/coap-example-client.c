@@ -125,7 +125,7 @@ PROCESS_THREAD(actuator_node, ev, data) {
             printf("\n--state in release button %d--\n", state);
             self_id = 501 + (int) random_rand() % 500;
             snprintf(msg, sizeof(msg),"food_%d", self_id);
-            printf("Food Actuator %s: Communicating id \n", self_id);
+            printf("Food Actuator %d: Communicating id \n", self_id);
             state = STATE_REGISTERING;
             coap_endpoint_parse(SERVER_EP, strlen(SERVER_EP), &serverCoap);
             coap_init_message(request, COAP_TYPE_CON, COAP_GET, 0);
@@ -140,7 +140,7 @@ PROCESS_THREAD(actuator_node, ev, data) {
             printf("Food Actuator: init \n");
             self_id = 501 + (int) random_rand() % 500;
             snprintf(msg, sizeof(msg),"food_%d", self_id);
-            printf("Food Actuator %s: Communicating id \n", self_id);
+            printf("Food Actuator %d: Communicating id \n", self_id);
             state = STATE_REGISTERING;
             coap_endpoint_parse(SERVER_EP, strlen(SERVER_EP), &serverCoap);
             coap_init_message(request, COAP_TYPE_CON, COAP_GET, 0);
