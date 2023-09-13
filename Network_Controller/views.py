@@ -14,6 +14,7 @@ def index(request):
 
 
 def food_refill_start(node_id):
+    print(node_id)
     paired, pair_object = get_pair_object_from_actuator(node_id)
     if paired:
         command_sender(COMMAND_REFILL_START_FOOD, pair_object)
@@ -32,7 +33,7 @@ def food_refill_stop(node_id):
 def hatch_open(node_id):
     paired, pair_object = get_pair_object_from_actuator(node_id)
     if paired:
-        command_sender(COMMAND_CLOSE_HATCH, pair_object)
+        command_sender(COMMAND_OPEN_HATCH, pair_object)
     else:
         print("Non trovato nodo paired")
 
