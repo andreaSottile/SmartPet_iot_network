@@ -315,6 +315,7 @@ def register_actuator(candidate_id, node_type, node_address):
     :param node_address: string with the network address
     :return: confirmation/reject message to actuator for that ID.
     '''
+    print("Registering new actuator: "+str(node_type))
     duplicate = LiveClient.objects.filter(nodeId=candidate_id).exists()
     if duplicate:
         # rejected candidate_id

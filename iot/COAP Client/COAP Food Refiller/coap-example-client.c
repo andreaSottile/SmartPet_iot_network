@@ -54,7 +54,7 @@
 #define TOGGLE_INTERVAL    (10 * CLOCK_SECOND)
 
 
-char *service_url = "hello";
+char *service_url = "/hello";
 
 static uint8_t state;
 #define STATE_INIT            0
@@ -133,7 +133,6 @@ PROCESS_THREAD(actuator_node, ev, data) {
             coap_set_payload(request, (uint8_t *) msg, sizeof(msg) - 1);
             COAP_BLOCKING_REQUEST(&serverCoap, request, client_chunk_handler);}
         if(etimer_expired(&et)) {
-            etimer_reset(&et);
             printf("\n--state on periodic timer %d--\n", state);
             if((state == STATE_INIT)||(state == STATE_REGISTERING)){
             // In a real application, MAC address is to be used instead of random
@@ -158,6 +157,7 @@ PROCESS_THREAD(actuator_node, ev, data) {
                     LOG_INFO("--%d Keepalive--\n", self_id);
             }
             printf("\n--reset Timer--\n");
+            etimer_set(&et, TOGGLE_INTERVAL);
 
         }
         //WORK PHASE: there is no actuator in the simulation

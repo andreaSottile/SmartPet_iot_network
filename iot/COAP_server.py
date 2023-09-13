@@ -12,6 +12,7 @@ class ResExample(Resource):
         self.payload = "Basic Resource"
 
     def render_GET(self, request):
+        print("Render_GET received request")
         digested_msg = request.payload.split("_")
         if digested_msg[0] == "food":
             register_actuator(digested_msg[1], digested_msg[0], request.source)

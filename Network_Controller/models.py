@@ -67,8 +67,8 @@ class HatchConfig(models.Model):
 
 class LiveClient(models.Model):
     nodeId = models.IntegerField()
-    nodeCoapName = models.CharField(max_length=16, default="")
-    nodeCoapAddress = models.CharField(max_length=30, default="")
+    nodeCoapName = models.CharField(max_length=16, default="", blank=True)
+    nodeCoapAddress = models.CharField(max_length=30, default="", blank=True)
 
     NODE_TYPES = [
         ('unknown', 'unknown'),
