@@ -14,22 +14,28 @@
     {% if client.isActuator %}
         <!- Actuator - Food ->
         <div class="button">
-            <a href="{% url 'food_start_refill' client.nodeId %}">Refill start</a>
+            <label for="set_food_refill_start"></label><input id="set_food_refill_start" type="button"
+                                                              value="Start Refill">
         </div>
         <div class="button">
-            <a href="{% url 'food_stop_refilling' client.nodeId %}">Refill stop</a>
+            <label for="set_food_refill_stop"></label><input id="set_food_refill_stop" type="button"
+                                                             value="Stop Refill">
         </div>
     {% else %}
         <!- Sensor - Food ->
-        <div class="line" >
+        <div class="line">
             <label for="threshold_top"></label><input id="threshold_top" value="{{ client.lvlThresholdStart }}">
-            <label for="set_top_food"></label><input id="set_top_food" type="button" data-url="clientapp/food/set/max/{{ client.nodeId }}/" value="Set top threshold">
+            <label for="set_top_food"></label><input id="set_top_food" type="button"
+                                                     data-url="clientapp/food/set/max/{{ client.nodeId }}/"
+                                                     value="Set top threshold">
 
         </div>
 
         <div class="line">
             <label for="threshold_bottom"></label><input id="threshold_bottom" value="{{ client.lvlThresholdStop }}">
-            <label for="set_bottom_food"></label><input id="set_bottom_food" type="button" data-url="clientapp/food/set/min/{{ client.nodeId }}/" value="Set bottom threshold">
+            <label for="set_bottom_food"></label><input id="set_bottom_food" type="button"
+                                                        data-url="clientapp/food/set/min/{{ client.nodeId }}/"
+                                                        value="Set bottom threshold">
 
         </div>
     {% endif %}
@@ -38,35 +44,49 @@
     {% if client.isActuator %}
         <!- Actuator - Hatch ->
         <div class="button">
+            <label for="hatch_open"></label><input id="hatch_open" type="button"
+                                                   data-url="{% url 'hatch_open' client.nodeId %}" value="Open Hatch">
 
-            <a href="{% url 'hatch_open' client.nodeId %}">Open Hatch</a>
         </div>
         <div class="button">
-            <a href="{% url 'hatch_close' client.nodeId %}">Close Hatch</a>
+            <label for="hatch_close"></label><input id="hatch_close" type="button"
+                                                    data-url="{% url 'hatch_close' client.nodeId %}"
+                                                    value="Close Hatch">
+
         </div>
     {% else %}
         <!- Sensor - Hatch ->
         <div class="button">
-            <a href="{% url 'hatch_lock' client.nodeId %}">Lock Hatch</a>
+            <label for="hatch_lock"></label><input id="hatch_lock" type="button"
+                                                   data-url="{% url 'hatch_lock' client.nodeId %}" value="Lock Hatch">
+
+
         </div>
         <div class="button">
-            <a href="{% url 'hatch_unlock' client.nodeId %}">Unlock Hatch</a>
+            <label for="hatch_unlock"></label><input id="hatch_unlock" type="button"
+                                                     data-url="{% url 'hatch_unlock' client.nodeId %}"
+                                                     value="Unlock Hatch">
+
         </div>
     {% endif %}
 
 {% endif %}
 {% if node_type == 'heartbeat' %}
-  <div class="line" >
-            <label for="heartbeat_low"></label><input id="heartbeat_low" value="{{ client.low_Threshold }}">
-      <label for="set_heartbeat_low"></label><input id="set_heartbeat_low" type="button" data-url="clientapp/heartbeat/set/max/{{ client.nodeId }}/" value="Set lower threshold">
+    <div class="line">
+        <label for="heartbeat_low"></label><input id="heartbeat_low" value="{{ client.low_Threshold }}">
+        <label for="set_heartbeat_low"></label><input id="set_heartbeat_low" type="button"
+                                                      data-url="clientapp/heartbeat/set/max/{{ client.nodeId }}/"
+                                                      value="Set lower threshold">
 
-        </div>
+    </div>
 
-        <div class="line">
-            <label for="heartbeat_high"></label><input id="heartbeat_high" value="{{ client.high_Threshold }}">
-            <label for="set_heartbeat_high"></label><input id="set_heartbeat_high" type="button" data-url="clientapp/heartbeat/set/min/{{ client.nodeId }}/" value="Set upper threshold">
+    <div class="line">
+        <label for="heartbeat_high"></label><input id="heartbeat_high" value="{{ client.high_Threshold }}">
+        <label for="set_heartbeat_high"></label><input id="set_heartbeat_high" type="button"
+                                                       data-url="clientapp/heartbeat/set/min/{{ client.nodeId }}/"
+                                                       value="Set upper threshold">
 
-        </div>
+    </div>
 {% endif %}
 <p>Node Type: {{ node_type }}</p>
 <p>{% if client.isActuator %}
@@ -82,7 +102,7 @@
 
 <br>
 <br>
-  <a class="btn btn-primary" href="{% url 'clients' %}">Return to client list</a>
+<a class="btn btn-primary" href="{% url 'clients' %}">Return to client list</a>
 
 <script>
     const node_id = {{ node_id }};
