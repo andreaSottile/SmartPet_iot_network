@@ -1,6 +1,8 @@
 // Funzione per inviare una richiesta POST con i dati di un input
 function sendPostRequest(url) {
-    console.log("Sending POST req");
+    console.log("Sending POST req" + url);
+    var baseUrl = "http://127.0.0.1:8000/";
+    var url = baseUrl + url;
     // Creare un oggetto XMLHttpRequest per inviare la richiesta
     var xhr = new XMLHttpRequest();
     // Impostare il metodo, l'url e l'asincronia della richiesta
