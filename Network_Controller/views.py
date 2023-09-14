@@ -1,4 +1,4 @@
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
 
@@ -13,73 +13,84 @@ def index(request):
     return render(request, "index.html", context)
 
 
-def food_refill_start(node_id):
+def food_refill_start(request, node_id):
     print(node_id)
     paired, pair_object = get_pair_object_from_actuator(node_id)
     if paired:
         command_sender(COMMAND_REFILL_START_FOOD, pair_object)
     else:
         print("Non trovato nodo paired")
+    return HttpResponse(status=200)
 
 
-def food_refill_stop(node_id):
+def food_refill_stop(request, node_id):
     paired, pair_object = get_pair_object_from_actuator(node_id)
     if paired:
         command_sender(COMMAND_REFILL_STOP_FOOD, pair_object)
     else:
         print("Non trovato nodo paired")
+    return HttpResponse(status=200)
 
 
-def hatch_open(node_id):
+def hatch_open(request, node_id):
     paired, pair_object = get_pair_object_from_actuator(node_id)
     if paired:
         command_sender(COMMAND_OPEN_HATCH, pair_object)
     else:
         print("Non trovato nodo paired")
+    return HttpResponse(status=200)
 
 
-def hatch_close(node_id):
+def hatch_close(request, node_id):
     paired, pair_object = get_pair_object_from_actuator(node_id)
     if paired:
         command_sender(COMMAND_CLOSE_HATCH, pair_object)
     else:
         print("Non trovato nodo paired")
+    return HttpResponse(status=200)
 
 
-def hatch_allow_open(node_id):
-    hatch = HatchConfig.objects.get(hatchId=node_id)
-    hatch.allowOpen = True;
+def hatch_allow_open(request, node_id):
+    hatch, _ = HatchConfig.objects.get_or_create(hatchId=node_id)
+    hatch.allowOpen = True
     hatch.save()
+    return config_page(request, node_id, "hatch")
 
 
-def hatch_forbid_open(node_id):
-    hatch = HatchConfig.objects.get(hatchId=node_id)
-    hatch.allowOpen = False;
+def hatch_forbid_open(request, node_id):
+    hatch, _ = HatchConfig.objects.get_or_create(hatchId=node_id)
+    hatch.allowOpen = False
     hatch.save()
+    return config_page(request, node_id, "hatch")
 
 
-def threshold_max(node_id, value):
-    food = FoodConfig.objects.get(containerID=node_id)
-    food.lvlThresholdStop = value;
+def threshold_max(request, node_id, value):
+    print(value)
+    food, _ = FoodConfig.objects.get_or_create(containerID=node_id)
+    food.lvlThresholdStop = value
     food.save()
+    return HttpResponse(status=200)
 
 
-def threshold_min(node_id, value):
-    food = FoodConfig.objects.get(containerID=node_id)
-    food.lvlThresholdStart = value;
+def threshold_min(request, node_id, value):
+    food, _ = FoodConfig.objects.get_or_create(containerID=node_id)
+    food.lvlThresholdStart = value
     food.save()
+    return HttpResponse(status=200)
 
 
-def heartbeat_max(node_id, value):
-    heartbeat = HeartBeatConfig.objects.get(petID=node_id)
-    heartbeat.high_Threshold = value;
+def heartbeat_max(request, node_id, value):
+    heartbeat, _ = HeartBeatConfig.objects.get_or_create(petID=node_id)
+    heartbeat.high_Threshold = value
     heartbeat.save()
+    return HttpResponse(status=200)
 
 
-def heartbeat_min(node_id, value):
-    heartbeat = HeartBeatConfig.objects.get(petID=node_id)
-    heartbeat.low_Threshold = value;
+def heartbeat_min(request, node_id, value):
+    heartbeat, _ = HeartBeatConfig.objects.get_or_create(petID=node_id)
+    heartbeat.low_Threshold = value
     heartbeat.save()
+    return HttpResponse(status=200)
 
 
 @csrf_exempt

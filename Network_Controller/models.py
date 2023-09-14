@@ -74,7 +74,7 @@ class LiveClient(models.Model):
         ('unknown', 'unknown'),
         ('food', 'food'),
         ('heartbeat', 'heartbeat'),
-        ( 'hatch', 'hatch')
+        ('hatch', 'hatch')
     ]
     isFree = models.BooleanField(default=True)
     nodeType = models.CharField(max_length=10,
@@ -83,6 +83,12 @@ class LiveClient(models.Model):
                                 )
     isActuator = models.BooleanField(default=False)
     lastInteraction = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        protocol = "  MQTT"
+        if self.isActuator:
+            protocol = "  CoAP"
+        return "LiveClient "+str(self.nodeId)+" type:"+self.nodeType+protocol
 
 
 class Pair(models.Model):

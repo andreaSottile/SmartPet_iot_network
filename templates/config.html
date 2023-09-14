@@ -7,6 +7,7 @@
 </head>
 <body>
 
+
 <h1>Configuration Page for {{ node_type }}</h1>
 
 {% if node_type == 'food' %}
@@ -37,6 +38,7 @@
     {% if client.isActuator %}
         <!- Actuator - Hatch ->
         <div class="button">
+
             <a href="{% url 'hatch_open' client.nodeId %}">Open Hatch</a>
         </div>
         <div class="button">
@@ -77,6 +79,11 @@
 {% else %}
     Paired with a partner
 {% endif %}</p>
+
+<br>
+<br>
+  <a class="btn btn-primary" href="{% url 'clients' %}">Return to client list</a>
+
 <script>
     const node_id = {{ node_id }};
     const node_type = "{{ node_type }}";

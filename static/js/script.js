@@ -1,8 +1,8 @@
 // Funzione per inviare una richiesta POST con i dati di un input
-function sendPostRequest(url) {
-    console.log("Sending POST req" + url);
+function sendPostRequest(target) {
+    console.log("Sending POST req" + target);
     var baseUrl = "http://127.0.0.1:8000/";
-    var url = baseUrl + url;
+    var url = baseUrl + target+"/";
     // Creare un oggetto XMLHttpRequest per inviare la richiesta
     var xhr = new XMLHttpRequest();
     // Impostare il metodo, l'url e l'asincronia della richiesta
@@ -11,7 +11,7 @@ function sendPostRequest(url) {
     xhr.onload = function () {
         // Se la richiesta ha avuto successo, mostrare un messaggio di conferma
         if (xhr.status === 200) {
-            alert("Richiesta inviata con successo");
+            alert("Modifica inviata con successo");
         } else {
             // Altrimenti, mostrare un messaggio di errore
             alert("Si è verificato un errore: " + xhr.statusText);
@@ -44,20 +44,20 @@ document.addEventListener("DOMContentLoaded", function () {
             let val = parseInt(document.getElementById("threshold_bottom").value);
             console.log(url + node_id + "/" + val);
             if ((val) && (val > 0))
-                sendPostRequest(url + "/" + node_id + "/" + val);
+                sendPostRequest(url + node_id + "/" + val);
         });
     }
 
     let heartbeat_low = document.getElementById("set_heartbeat_low");
     if (heartbeat_low != null) {
         console.log("added event listener to low Hb")
-        hearbeat_low.addEventListener("click", function () {
+        heartbeat_low.addEventListener("click", function () {
             const url = "clientapp/heartbeat/set/min/";
             // Invocare la funzione sendPostRequest con l'id dell'input e l'url recuperato
             let val = parseInt(document.getElementById("heartbeat_low").value);
             console.log(url + node_id + "/" + val);
             if ((val) && (val > 0))
-                sendPostRequest(url + "/" + node_id + "/" + val);
+                sendPostRequest(url + node_id + "/" + val);
         });
     }
 
@@ -70,7 +70,7 @@ document.addEventListener("DOMContentLoaded", function () {
             let val = parseInt(document.getElementById("heartbeat_high").value);
             console.log(url + node_id + "/" + val)
             if ((val) && (val > 0))
-                sendPostRequest(url + "/" + node_id + "/" + val);
+                sendPostRequest(url + node_id + "/" + val);
         });
     }
 
