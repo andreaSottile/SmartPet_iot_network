@@ -53,8 +53,9 @@
 #define SERVER_EP "coap://[fd00::1]:5683"
 #define TOGGLE_INTERVAL    (10 * CLOCK_SECOND)
 
-
+#define MSG_TEMPLATE_SEND_ID "_amsg_food_%d_zmsg_"
 char *service_url = "/hello";
+
 
 static uint8_t state;
 #define STATE_INIT            0
@@ -89,11 +90,13 @@ void client_chunk_handler(coap_message_t *response) {
 
 
 PROCESS_THREAD(actuator_node, ev, data) {
+
+    PROCESS_BEGIN();
+
     static coap_endpoint_t serverCoap;
     static coap_message_t request[1];
     button_hal_button_t *button;
     button = button_hal_get_by_index(0);
-    PROCESS_BEGIN();
 
     LOG_INFO("Starting actuator node\n");
     char msg[32];
@@ -120,6 +123,11 @@ PROCESS_THREAD(actuator_node, ev, data) {
             printf("\n--state in press button %d--\n", state);
             }
         if(ev == button_hal_release_event) {
+            printf("Server address configured: %s",SERVER_EP)
+            printf("Connection type configured: %s",COAP_TYPE_CON)
+            printf("Connection method: %s",COAP_GET)
+            printf("Coap method method: %s",COAP_METHOD_GET)
+
             button = (button_hal_button_t *)data;
             printf("Release event (%s)\n", BUTTON_HAL_GET_DESCRIPTION(button));
             printf("\n--state in release button %d--\n", state);
@@ -138,7 +146,7 @@ PROCESS_THREAD(actuator_node, ev, data) {
             // In a real application, MAC address is to be used instead of random
             printf("Food Actuator: init \n");
             self_id = 501 + (int) random_rand() % 500;
-            snprintf(msg, sizeof(msg),"food_%d", self_id);
+            snprintf(msg, sizeof(msg),MSG_TEMPLATE_SEND_ID, self_id);
             printf("Food Actuator %d: Communicating id \n", self_id);
             state = STATE_REGISTERING;
             coap_endpoint_parse(SERVER_EP, strlen(SERVER_EP), &serverCoap);
