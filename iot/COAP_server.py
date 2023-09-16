@@ -13,6 +13,9 @@ from coapthon.messages.response import Response
 from coapthon import defines
 from coapthon.messages.message import Message
 from coapthon.messages.request import Request
+import struct
+from coapthon.messages.option import Option
+
 
 
 
@@ -83,7 +86,7 @@ class CoAPServer(CoAP):
             try:
                 serializer = Serializer()
                 print(str(client_address[0]) + " port:" + str(client_address[1]) + "datagram to serialize:" + str(data))
-                message = serializer.deserialize(data, client_address)
+                message = self.deserialize(data, client_address)
                 if isinstance(message, int):
                     print("sono nella bad request")
                     logger.error("receive_datagram - BAD REQUEST")
@@ -125,6 +128,129 @@ class CoAPServer(CoAP):
             except RuntimeError:
                 logger.exception("Exception with Executor")
         self._socket.close()
+
+    def deserialize(datagram, source):
+        """
+        De-serialize a stream of byte to a message.
+
+        :param datagram: the incoming udp message
+        :param source: the source address and port (ip, port)
+        :return: the message
+        :rtype: Message
+        """
+        try:
+            fmt = "!BBH"
+            pos = struct.calcsize(fmt)
+            s = struct.Struct(fmt)
+            values = s.unpack_from(datagram)
+            print("first "+str(values[0]) + " code:" + str(values[1]) + " mid:" + str(values[2]))
+            first = values[0]
+            code = values[1]
+            mid = values[2]
+            version = (first & 0xC0) >> 6
+            message_type = (first & 0x30) >> 4
+            token_length = (first & 0x0F)
+            print("version "+str(version) + " message_type:" + str(message_type) + " token_length:" + str(token_length))
+            if Serializer.is_response(code):
+                print("è un response")
+                message = Response()
+                message.code = code
+            elif Serializer.is_request(code):
+                print("è un request")
+                message = Request()
+                message.code = code
+            else:
+                print("nessun dei 2")
+                message = Message()
+            message.source = source
+            message.destination = None
+            message.version = version
+            message.type = message_type
+            message.mid = mid
+            if token_length > 0:
+                message.token = datagram[pos:pos+token_length]
+            else:
+                message.token = None
+
+            pos += token_length
+            current_option = 0
+            values = datagram[pos:]
+            length_packet = len(values)
+            pos = 0
+            while pos < length_packet:
+                next_byte = struct.unpack("B", values[pos].to_bytes(1, "big"))[0]
+                pos += 1
+                if next_byte != int(defines.PAYLOAD_MARKER):
+                    # the first 4 bits of the byte represent the option delta
+                    # delta = self._reader.read(4).uint
+                    num, option_length, pos = Serializer.read_option_value_len_from_byte(next_byte, pos, values)
+                    logger.debug("option value (delta): %d len: %d", num, option_length)
+                    current_option += num
+                    # read option
+                    try:
+                        option_item = defines.OptionRegistry.LIST[current_option]
+                    except KeyError:
+                        (opt_critical, _, _) = defines.OptionRegistry.get_option_flags(current_option)
+                        if opt_critical:
+                            raise AttributeError("Critical option %s unknown" % current_option)
+                        else:
+                            # If the non-critical option is unknown
+                            # (vendor-specific, proprietary) - just skip it
+                            logger.warning("unrecognized option %d", current_option)
+                    else:
+                        if option_length == 0:
+                            value = None
+                        elif option_item.value_type == defines.INTEGER:
+                            tmp = values[pos: pos + option_length]
+                            value = 0
+                            for b in tmp:
+                                value = (value << 8) | struct.unpack("B", b.to_bytes(1, "big"))[0]
+                        elif option_item.value_type == defines.OPAQUE:
+                            tmp = values[pos: pos + option_length]
+                            value = tmp
+                        else:
+                            value = values[pos: pos + option_length]
+
+                        option = Option()
+                        option.number = current_option
+                        option.value = Serializer.convert_to_raw(current_option, value, option_length)
+
+                        message.add_option(option)
+                        if option.number == defines.OptionRegistry.CONTENT_TYPE.number:
+                            message.payload_type = option.value
+                    finally:
+                        pos += option_length
+                else:
+
+                    if length_packet <= pos:
+                        # log.err("Payload Marker with no payload")
+                        raise AttributeError("Packet length %s, pos %s" % (length_packet, pos))
+                    message.payload = ""
+                    payload = values[pos:]
+                    if hasattr(message, 'payload_type') and message.payload_type in [
+                        defines.Content_types["application/octet-stream"],
+                        defines.Content_types["application/exi"],
+                        defines.Content_types["application/cbor"]
+                    ]:
+                        message.payload = payload
+                    else:
+                        try:
+                            message.payload = payload.decode("utf-8")
+                        except AttributeError:
+                            message.payload = payload
+                    pos += len(payload)
+
+            return message
+        except AttributeError:
+            print("attribute error")
+            return defines.Codes.BAD_REQUEST.number
+        except struct.error:
+            print("struct error")
+            return defines.Codes.BAD_REQUEST.number
+        except UnicodeDecodeError as e:
+            print("unicode error")
+            logger.debug(e)
+            return defines.Codes.BAD_REQUEST.number
 
 
 
