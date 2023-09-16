@@ -123,10 +123,9 @@ PROCESS_THREAD(actuator_node, ev, data) {
             printf("\n--state in press button %d--\n", state);
             }
         if(ev == button_hal_release_event) {
-            printf("Server address configured: %s",SERVER_EP)
-            printf("Connection type configured: %s",COAP_TYPE_CON)
-            printf("Connection method: %s",COAP_GET)
-            printf("Coap method method: %s",COAP_METHOD_GET)
+            printf("Server address configured: %s",SERVER_EP);
+            printf("Connection type configured: %s",COAP_TYPE_CON);
+            printf("Connection method: %s",COAP_GET);
 
             button = (button_hal_button_t *)data;
             printf("Release event (%s)\n", BUTTON_HAL_GET_DESCRIPTION(button));
