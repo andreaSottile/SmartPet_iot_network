@@ -31,10 +31,12 @@ class ResExample(Resource):
     def render_GET(self, request):
         print("Render_GET received request")
         digested_msg = request.payload.split("_")
+        utf8_msg = digested_msg[1][0:3]
+        print(utf8_msg)
         if digested_msg[0] == "food":
-            register_actuator(digested_msg[1], digested_msg[0], request.source)
+            register_actuator(utf8_msg, digested_msg[0], request.source)
         elif digested_msg[0] == "hatch":
-            register_actuator(digested_msg[1], digested_msg[0], request.source)
+            register_actuator(utf8_msg, digested_msg[0], request.source)
         return self
 
 
@@ -129,7 +131,7 @@ class CoAPServer(CoAP):
                 logger.exception("Exception with Executor")
         self._socket.close()
 
-    def deserialize(datagram, source):
+    def deserialize(self, datagram, source):
         """
         De-serialize a stream of byte to a message.
 
@@ -235,7 +237,7 @@ class CoAPServer(CoAP):
                         message.payload = payload
                     else:
                         try:
-                            message.payload = payload.decode("utf-8")
+                            message.payload = payload.decode("utf-8", "ignore")
                         except AttributeError:
                             message.payload = payload
                     pos += len(payload)
@@ -248,7 +250,7 @@ class CoAPServer(CoAP):
             print("struct error")
             return defines.Codes.BAD_REQUEST.number
         except UnicodeDecodeError as e:
-            print("unicode error")
+            print("unicode error" + str(e))
             logger.debug(e)
             return defines.Codes.BAD_REQUEST.number
 
