@@ -354,13 +354,13 @@ def flush_outdated_data():
 
 def look_for_partner(node_type, target):
     if target == 'Sensor':
-        targetID = LiveClient.objects.filter(nodeType=node_type, isActuator=False, isFree=True).first()
+        live_client = LiveClient.objects.filter(nodeType=node_type, isActuator=False, isFree=True).first()
     elif target == 'Actuator':
-        targetID = LiveClient.objects.filter(nodeType=node_type, isActuator=True, isFree=True).first()
+        live_client = LiveClient.objects.filter(nodeType=node_type, isActuator=True, isFree=True).first()
     else:
         return 0
-    if targetID is not None:
-        return targetID
+    if live_client is not None:
+        return live_client.nodeId
     else:
         return 0
 
