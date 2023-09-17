@@ -53,7 +53,6 @@
 #define SERVER_EP "coap://[fd00::1]:5683"
 #define TOGGLE_INTERVAL    (10 * CLOCK_SECOND)
 
-#define MSG_TEMPLATE_SEND_ID "_amsg_food_%d_zmsg_"
 char *service_url = "/hello";
 
 
@@ -126,7 +125,6 @@ PROCESS_THREAD(actuator_node, ev, data) {
             printf("Server address configured: %s",SERVER_EP)
             printf("Connection type configured: %s",COAP_TYPE_CON)
             printf("Connection method: %s",COAP_GET)
-            printf("Coap method method: %s",COAP_METHOD_GET)
 
             button = (button_hal_button_t *)data;
             printf("Release event (%s)\n", BUTTON_HAL_GET_DESCRIPTION(button));
@@ -146,7 +144,7 @@ PROCESS_THREAD(actuator_node, ev, data) {
             // In a real application, MAC address is to be used instead of random
             printf("Food Actuator: init \n");
             self_id = 501 + (int) random_rand() % 500;
-            snprintf(msg, sizeof(msg),MSG_TEMPLATE_SEND_ID, self_id);
+            snprintf(msg, sizeof(msg),"food_%d", self_id);
             printf("Food Actuator %d: Communicating id \n", self_id);
             state = STATE_REGISTERING;
             coap_endpoint_parse(SERVER_EP, strlen(SERVER_EP), &serverCoap);

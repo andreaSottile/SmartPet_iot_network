@@ -54,7 +54,7 @@
 #define TOGGLE_INTERVAL    (10 * CLOCK_SECOND)
 
 
-char *service_url = "hello";
+char *service_url = "/hello";
 
 static uint8_t state;
 #define STATE_INIT            0
@@ -89,11 +89,13 @@ void client_chunk_handler(coap_message_t *response) {
 
 
 PROCESS_THREAD(actuator_node, ev, data) {
+
+    PROCESS_BEGIN();
     static coap_endpoint_t serverCoap;
     static coap_message_t request[1];
     button_hal_button_t *button;
     button = button_hal_get_by_index(0);
-    PROCESS_BEGIN();
+
 
     LOG_INFO("Starting actuator node\n");
     char msg[32];
@@ -120,6 +122,10 @@ PROCESS_THREAD(actuator_node, ev, data) {
             printf("\n--state in press button %d--\n", state);
             }
         if(ev == button_hal_release_event) {
+	        printf("Server address configured: %s",SERVER_EP)
+            printf("Connection type configured: %s",COAP_TYPE_CON)
+            printf("Connection method: %s",COAP_GET)
+
             button = (button_hal_button_t *)data;
             printf("Release event (%s)\n", BUTTON_HAL_GET_DESCRIPTION(button));
             printf("\n--state in release button %d--\n", state);
@@ -133,7 +139,6 @@ PROCESS_THREAD(actuator_node, ev, data) {
             coap_set_payload(request, (uint8_t *) msg, sizeof(msg) - 1);
             COAP_BLOCKING_REQUEST(&serverCoap, request, client_chunk_handler);}
         if(etimer_expired(&et)) {
-            etimer_reset(&et);
             printf("\n--state on periodic timer %d--\n", state);
             if((state == STATE_INIT)||(state == STATE_REGISTERING)){
             // In a real application, MAC address is to be used instead of random
@@ -158,7 +163,7 @@ PROCESS_THREAD(actuator_node, ev, data) {
                     LOG_INFO("--%d Keepalive--\n", self_id);
             }
             printf("\n--reset Timer--\n");
-
+            etimer_set(&et, TOGGLE_INTERVAL);
         }
         //WORK PHASE: there is no actuator in the simulation
     }
