@@ -82,8 +82,7 @@ def display_alert(msg_content):
 
     param msg_content: a string describing the error
     """
-    # TODO: notifica grafica che sta succedendo un errore
-    pass
+    print(msg_content)
 
 
 def check_food_level(cid):

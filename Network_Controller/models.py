@@ -62,7 +62,7 @@ class Hatch(models.Model):
 class HatchConfig(models.Model):
     hatchId = models.CharField(max_length=100)
     allowOpen = models.BooleanField(default=False)
-    defaultAllow = False
+    defaultAllow = True
 
 
 class LiveClient(models.Model):
