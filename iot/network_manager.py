@@ -62,7 +62,8 @@ def receive(topic, msg):
 def activate_refiller(actuator_Id):
     clientCOAP = getConnectionHelperClient(actuator_Id)
     # Send a POST request to actuator (THIS HAS NO EFFECT BESIDE THE OUTPUT LOG)
-    response = clientCOAP.post("food", "command= open" + str(actuator_Id))
+    # sending ID is not necessary, since the communication is 1:1
+    response = clientCOAP.post("food", "command=open")
     if response.code == 67:
         return 1
     else:
@@ -72,7 +73,8 @@ def activate_refiller(actuator_Id):
 def close_refiller(actuator_Id):
     clientCOAP = getConnectionHelperClient(actuator_Id)
     # Send a POST request to actuator (THIS HAS NO EFFECT BESIDE THE OUTPUT LOG)
-    response = clientCOAP.post("food", "command= close" + str(actuator_Id))
+    # sending ID is not necessary, since the communication is 1:1
+    response = clientCOAP.post("food", "command=close")
     if response.code == 67:
         return 1
     else:
@@ -82,7 +84,8 @@ def close_refiller(actuator_Id):
 def close_hatch(actuator_Id):
     clientCOAP = getConnectionHelperClient(actuator_Id)
     # Send a POST request to actuator (THIS HAS NO EFFECT BESIDE THE OUTPUT LOG)
-    response = clientCOAP.post("hatch", "command= close" + str(actuator_Id))
+    # sending ID is not necessary, since the communication is 1:1
+    response = clientCOAP.post("hatch", "command=close")
     if response.code == 67:
         return 1
     else:
@@ -92,7 +95,8 @@ def close_hatch(actuator_Id):
 def open_hatch(actuator_Id):
     clientCOAP = getConnectionHelperClient()
     # Send a POST request to actuator (THIS HAS NO EFFECT BESIDE THE OUTPUT LOG)
-    response = clientCOAP.post("hatch", "command=open" + str(actuator_Id))
+    # sending ID is not necessary, since the communication is 1:1
+    response = clientCOAP.post("hatch", "command=open")
     if response.code == 67:
         return 1
     else:

@@ -109,9 +109,9 @@ static void res_post_handler(coap_message_t *request, coap_message_t *response, 
   LOG_INFO("post");
   if ((len = coap_get_post_variable(request, "command", &command))){
     LOG_DBG("command_hatch %s\n", command);
-
+    printf("command_hatch %s\n", command);
     // status == 0 (hatch close)
-    if (strncmp(command, "0", len) == 0){
+    if (strncmp(command, "close", len) == 0){
       LOG_INFO("close");
       coap_set_status_code(response,VALID_2_03);
       rgb_led_set(RGB_LED_RED);
@@ -119,7 +119,7 @@ static void res_post_handler(coap_message_t *request, coap_message_t *response, 
       success = 1;
     }
     // status == 1 (hatch open)
-    else if (strncmp(command, "1", len) == 0){
+    else if (strncmp(command, "open", len) == 0){
       LOG_INFO("open");
       coap_set_status_code(response,VALID_2_03);
       rgb_led_set(RGB_LED_GREEN);
