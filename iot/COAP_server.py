@@ -4,7 +4,7 @@ import threading
 from coapthon.server.coap import CoAP
 from coapthon.resources.resource import Resource
 
-#import from tanganelli
+# import from tanganelli
 from coapthon.serializer import Serializer
 import socket
 import logging
@@ -16,12 +16,12 @@ from coapthon.messages.request import Request
 import struct
 from coapthon.messages.option import Option
 
-
-
-
 from iot.data_manager import register_actuator
 
 logger = logging.getLogger(__name__)
+
+debug_mode = False
+
 
 class ResExample(Resource):
     def __init__(self, name="ResExample", coap_server=None):
@@ -29,10 +29,12 @@ class ResExample(Resource):
         self.payload = "Basic Resource"
 
     def render_GET(self, request):
-        print("Render_GET received request")
+        if debug_mode:
+            print("Render_GET received request")
         digested_msg = request.payload.split("_")
         utf8_msg = digested_msg[1][0:3]
-        print(utf8_msg)
+        if debug_mode:
+            print(utf8_msg)
         if digested_msg[0] == "food":
             register_actuator(utf8_msg, digested_msg[0], request.source)
         elif digested_msg[0] == "hatch":
@@ -90,7 +92,8 @@ class CoAPServer(CoAP):
                 print(str(client_address[0]) + " port:" + str(client_address[1]) + "datagram to serialize:" + str(data))
                 message = self.deserialize(data, client_address)
                 if isinstance(message, int):
-                    print("sono nella bad request")
+                    if debug_mode:
+                        print("sono nella bad request")
                     logger.error("receive_datagram - BAD REQUEST")
 
                     rst = Message()
@@ -145,16 +148,21 @@ class CoAPServer(CoAP):
             pos = struct.calcsize(fmt)
             s = struct.Struct(fmt)
             values = s.unpack_from(datagram)
-            print("first "+str(values[0]) + " code:" + str(values[1]) + " mid:" + str(values[2]))
+            if debug_mode:
+                print("first " + str(values[0]) + " code:" + str(values[1]) + " mid:" + str(values[2]))
             first = values[0]
             code = values[1]
             mid = values[2]
             version = (first & 0xC0) >> 6
             message_type = (first & 0x30) >> 4
             token_length = (first & 0x0F)
-            print("version "+str(version) + " message_type:" + str(message_type) + " token_length:" + str(token_length))
+            if debug_mode:
+                print(
+                    "version " + str(version) + " message_type:" + str(message_type) + " token_length:" + str(
+                        token_length))
             if Serializer.is_response(code):
-                print("è un response")
+                if debug_mode:
+                    print("è un response")
                 message = Response()
                 message.code = code
             elif Serializer.is_request(code):
@@ -162,7 +170,8 @@ class CoAPServer(CoAP):
                 message = Request()
                 message.code = code
             else:
-                print("nessun dei 2")
+                if debug_mode:
+                    print("nessun dei 2")
                 message = Message()
             message.source = source
             message.destination = None
@@ -170,7 +179,7 @@ class CoAPServer(CoAP):
             message.type = message_type
             message.mid = mid
             if token_length > 0:
-                message.token = datagram[pos:pos+token_length]
+                message.token = datagram[pos:pos + token_length]
             else:
                 message.token = None
 
@@ -244,15 +253,15 @@ class CoAPServer(CoAP):
 
             return message
         except AttributeError:
-            print("attribute error")
+            if debug_mode:
+                print("attribute error")
             return defines.Codes.BAD_REQUEST.number
         except struct.error:
-            print("struct error")
+            if debug_mode:
+                print("struct error")
             return defines.Codes.BAD_REQUEST.number
         except UnicodeDecodeError as e:
-            print("unicode error" + str(e))
+            if debug_mode:
+                print("unicode error" + str(e))
             logger.debug(e)
             return defines.Codes.BAD_REQUEST.number
-
-
-

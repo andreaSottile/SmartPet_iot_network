@@ -5,6 +5,7 @@ def getConnectionHelperClient(nodeId):
     print("sono nella getconnection e sto per stampare le key del dizionario")
     for key in coapConnectionHandler.coapConnectionDict.keys():
         print(key)
+    print(nodeId)
     return coapConnectionHandler.coapConnectionDict[nodeId]
 
 
