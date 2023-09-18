@@ -77,11 +77,12 @@ void client_chunk_handler(coap_message_t *response) {
     if (response == NULL) {
         LOG_INFO("Request timed out");
 
-if(debug_mode)
-        printf("risposta null \n");
+        if(debug_mode)
+            printf("risposta null \n");
         return;
     }
-    printf("dopo response \n");
+    if(debug_mode)
+        printf("dopo response \n");
     int len = coap_get_payload(response, &chunk);
     LOG_INFO("|%.*s \n", len, (char *) chunk);
 
@@ -145,15 +146,15 @@ if(debug_mode)            printf("Connection method: %s",COAP_GET);
 
             button = (button_hal_button_t *)data;
 
-if(debug_mode)
-printf("Release event (%s)\n", BUTTON_HAL_GET_DESCRIPTION(button));
+            if(debug_mode)
+                printf("Release event (%s)\n", BUTTON_HAL_GET_DESCRIPTION(button));
 
-if(debug_mode)            printf("\n--state in release button %d--\n", state);
+            if(debug_mode)
+                printf("\n--state in release button %d--\n", state);
             self_id = 501 + (int) random_rand() % 500;
             snprintf(msg, sizeof(msg),"food_%d", self_id);
 
-if(debug_mode)
-printf("Food Actuator %d: Communicating id \n", self_id);
+            printf("Food Actuator %d: Communicating id \n", self_id);
             state = STATE_REGISTERING;
             coap_endpoint_parse(SERVER_EP, strlen(SERVER_EP), &serverCoap);
             coap_init_message(request, COAP_TYPE_CON, COAP_GET, 0);
@@ -162,27 +163,27 @@ printf("Food Actuator %d: Communicating id \n", self_id);
             COAP_BLOCKING_REQUEST(&serverCoap, request, client_chunk_handler);}
         if(etimer_expired(&et)) {
 
-if(debug_mode)
-            printf("\n--state on periodic timer %d--\n", state);
+            if(debug_mode)
+                printf("\n--state on periodic timer %d--\n", state);
             if((state == STATE_INIT)||(state == STATE_REGISTERING)){
             // In a real application, MAC address is to be used instead of random
 
-if(debug_mode)
-printf("Food Actuator: init \n");
-            self_id = 501 + (int) random_rand() % 500;
-            snprintf(msg, sizeof(msg),MSG_TEMPLATE_SEND_ID, self_id);
+                if(debug_mode)
+                    printf("Food Actuator: init \n");
+                self_id = 501 + (int) random_rand() % 500;
+                snprintf(msg, sizeof(msg),"food_%d", self_id);
+                printf("Food Actuator %d: Communicating id \n", self_id);
+                state = STATE_REGISTERING;
+                coap_endpoint_parse(SERVER_EP, strlen(SERVER_EP), &serverCoap);
+                coap_init_message(request, COAP_TYPE_CON, COAP_GET, 0);
+                coap_set_header_uri_path(request, service_url);
+                coap_set_payload(request, (uint8_t *) msg, sizeof(msg) - 1);
+                COAP_BLOCKING_REQUEST(&serverCoap, request, client_chunk_handler);
+                LOG_INFO("--Node Registering--\n");
 
-if(debug_mode)            printf("Food Actuator %d: Communicating id \n", self_id);
-            state = STATE_REGISTERING;
-            coap_endpoint_parse(SERVER_EP, strlen(SERVER_EP), &serverCoap);
-            coap_init_message(request, COAP_TYPE_CON, COAP_GET, 0);
-            coap_set_header_uri_path(request, service_url);
-            coap_set_payload(request, (uint8_t *) msg, sizeof(msg) - 1);
-            COAP_BLOCKING_REQUEST(&serverCoap, request, client_chunk_handler);
-            LOG_INFO("--Node Registering--\n");
-
-if(debug_mode)   printf("dopo blocking request \n");
-        }
+                if(debug_mode)
+                printf("dopo blocking request \n");
+           }
             if(state == STATE_REGISTERED){
                 char msg[32];
                     snprintf(msg, sizeof(msg),"food_%d", self_id);

@@ -89,7 +89,9 @@ class CoAPServer(CoAP):
                 raise
             try:
                 serializer = Serializer()
-                print(str(client_address[0]) + " port:" + str(client_address[1]) + "datagram to serialize:" + str(data))
+                if debug_mode:
+                    print(str(client_address[0]) + " port:" + str(client_address[1]) + "datagram to serialize:" + str(
+                        data))
                 message = self.deserialize(data, client_address)
                 if isinstance(message, int):
                     if debug_mode:
@@ -158,15 +160,15 @@ class CoAPServer(CoAP):
             token_length = (first & 0x0F)
             if debug_mode:
                 print(
-                    "version " + str(version) + " message_type:" + str(message_type) + " token_length:" + str(
-                        token_length))
+                    "version " + str(version) + " message_type:" + str(message_type) + " token_length:" + str(token_length))
             if Serializer.is_response(code):
                 if debug_mode:
                     print("è un response")
                 message = Response()
                 message.code = code
             elif Serializer.is_request(code):
-                print("è un request")
+                if debug_mode:
+                    print("è un request")
                 message = Request()
                 message.code = code
             else:

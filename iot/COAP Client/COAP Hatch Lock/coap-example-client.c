@@ -78,7 +78,8 @@ if(debug_mode)
         printf("risposta null \n");
         return;
     }
-    printf("dopo response \n");
+    if(debug_mode)
+        printf("dopo response \n");
     int len = coap_get_payload(response, &chunk);
     LOG_INFO("|%.*s \n", len, (char *) chunk);
 
@@ -132,11 +133,11 @@ if(debug_mode)
             }
         if(ev == button_hal_release_event) {
 if(debug_mode)
-	        printf("Server address configured: %s",SERVER_EP)
+	        printf("Server address configured: %s",SERVER_EP);
 if(debug_mode)
-            printf("Connection type configured: %s",COAP_TYPE_CON)
+            printf("Connection type configured: %s",COAP_TYPE_CON);
 if(debug_mode)
-            printf("Connection method: %s",COAP_GET)
+            printf("Connection method: %s",COAP_GET);
 
             button = (button_hal_button_t *)data;
 if(debug_mode)
@@ -152,6 +153,8 @@ if(debug_mode)
             coap_set_payload(request, (uint8_t *) msg, sizeof(msg) - 1);
             COAP_BLOCKING_REQUEST(&serverCoap, request, client_chunk_handler);}
         if(etimer_expired(&et)) {
+
+if(debug_mode)
             printf("\n--state on periodic timer %d--\n", state);
             if((state == STATE_INIT)||(state == STATE_REGISTERING)){
             // In a real application, MAC address is to be used instead of random
@@ -159,7 +162,6 @@ if(debug_mode)
             self_id = 501 + (int) random_rand() % 500;
             snprintf(msg, sizeof(msg),"hatch_%d", self_id);
 
-if(debug_mode)
             printf("hatch Actuator %d: Communicating id \n", self_id);
             state = STATE_REGISTERING;
             coap_endpoint_parse(SERVER_EP, strlen(SERVER_EP), &serverCoap);
