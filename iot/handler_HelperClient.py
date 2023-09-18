@@ -2,18 +2,11 @@ from coapthon.client.helperclient import HelperClient
 
 
 def getConnectionHelperClient(nodeId):
-    print("sono nella getconnection e sto per stampare le key del dizionario")
-    for key in coapConnectionHandler.coapConnectionDict.keys():
-        print(key)
-    print(nodeId)
-    return coapConnectionHandler.coapConnectionDict[nodeId]
+    return coapConnectionHandler.coapConnectionDict[str(nodeId)]
 
 
 def createConnection(nodeId, actuatorAddress):
-    coapConnectionHandler.coapConnectionDict[nodeId] = HelperClient(actuatorAddress)
-    print("fatto con nodeId:" + str(nodeId) + "e actuatorAddress:" + str(actuatorAddress))
-    for key in coapConnectionHandler.coapConnectionDict.keys():
-        print(key)
+    coapConnectionHandler.coapConnectionDict[str(nodeId)] = HelperClient(actuatorAddress)
 
 
 class coapConnectionHandler:
