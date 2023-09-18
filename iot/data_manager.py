@@ -315,12 +315,13 @@ def register_actuator(candidate_id, node_type, node_address):
     :param node_address: string with the network address
     :return: confirmation/reject message to actuator for that ID.
     '''
-    print("Registering new actuator: "+str(node_type))
+
     duplicate = LiveClient.objects.filter(nodeId=candidate_id).exists()
     if duplicate:
         # rejected candidate_id
         return str(node_type) + " " + str(candidate_id) + " denied"
     else:
+        print("Registering new actuator: " + str(node_type))
         # not a duplicate: register new node
         now = timezone.now()
         # Looking for an unpaired Actuator Node of the same type of the sensor

@@ -62,7 +62,7 @@ def receive(topic, msg):
 def activate_refiller(actuator_Id):
     clientCOAP = getConnectionHelperClient(actuator_Id)
     # Send a POST request to actuator (THIS HAS NO EFFECT BESIDE THE OUTPUT LOG)
-    response = clientCOAP.post("food", "command= open" + actuator_Id)
+    response = clientCOAP.post("food", "command= open" + str(actuator_Id))
     if response.code == 67:
         return 1
     else:
@@ -72,7 +72,7 @@ def activate_refiller(actuator_Id):
 def close_refiller(actuator_Id):
     clientCOAP = getConnectionHelperClient(actuator_Id)
     # Send a POST request to actuator (THIS HAS NO EFFECT BESIDE THE OUTPUT LOG)
-    response = clientCOAP.post("food", "command= close" + actuator_Id)
+    response = clientCOAP.post("food", "command= close" + str(actuator_Id))
     if response.code == 67:
         return 1
     else:
@@ -82,7 +82,7 @@ def close_refiller(actuator_Id):
 def close_hatch(actuator_Id):
     clientCOAP = getConnectionHelperClient(actuator_Id)
     # Send a POST request to actuator (THIS HAS NO EFFECT BESIDE THE OUTPUT LOG)
-    response = clientCOAP.post("hatch", "command= close" + actuator_Id)
+    response = clientCOAP.post("hatch", "command= close" + str(actuator_Id))
     if response.code == 67:
         return 1
     else:
@@ -92,7 +92,7 @@ def close_hatch(actuator_Id):
 def open_hatch(actuator_Id):
     clientCOAP = getConnectionHelperClient()
     # Send a POST request to actuator (THIS HAS NO EFFECT BESIDE THE OUTPUT LOG)
-    response = clientCOAP.post("hatch", "command=open" + actuator_Id)
+    response = clientCOAP.post("hatch", "command=open" + str(actuator_Id))
     if response.code == 67:
         return 1
     else:
@@ -116,7 +116,7 @@ def command_sender(rec_msg_code, rec_msg_target):
         if done:
             update_last_interaction(pair_target)
 
-        node.client.publish(TOPIC_ACTUATOR_HATCH, rec_msg_target + " open")
+        node.client.publish(TOPIC_ACTUATOR_HATCH, str(rec_msg_target) + " open")
 
         # Action: close hatch
     elif str(rec_msg_code) == COMMAND_CLOSE_HATCH:
@@ -128,7 +128,7 @@ def command_sender(rec_msg_code, rec_msg_target):
         done = close_hatch(pair_target)
         if done:
             update_last_interaction(pair_target)
-        node.client.publish(TOPIC_ACTUATOR_HATCH, rec_msg_target + " close")
+        node.client.publish(TOPIC_ACTUATOR_HATCH, str(rec_msg_target) + " close")
 
         # Action: refill food
     elif str(rec_msg_code) == COMMAND_REFILL_START_FOOD:
@@ -140,7 +140,7 @@ def command_sender(rec_msg_code, rec_msg_target):
         done = activate_refiller(pair_target)
         if done:
             update_last_interaction(pair_target)
-        node.client.publish(TOPIC_ACTUATOR_FOOD, rec_msg_target + " filling")
+        node.client.publish(TOPIC_ACTUATOR_FOOD, str(rec_msg_target) + " filling")
 
         # Action: stop food refill
     elif str(rec_msg_code) == COMMAND_REFILL_STOP_FOOD:
@@ -152,4 +152,4 @@ def command_sender(rec_msg_code, rec_msg_target):
         done = close_refiller(pair_target)
         if done:
             update_last_interaction(pair_target)
-        node.client.publish(TOPIC_ACTUATOR_FOOD, rec_msg_target + " stop")
+        node.client.publish(TOPIC_ACTUATOR_FOOD, str(rec_msg_target) + " stop")
