@@ -38,6 +38,7 @@ def boot(req):
 
 
 def get_mqtt_transceiver():
+    global mqtt_listener
     return mqtt_listener
 
 
@@ -93,7 +94,7 @@ def close_hatch(actuator_Id):
 
 
 def open_hatch(actuator_Id):
-    clientCOAP = getConnectionHelperClient()
+    clientCOAP = getConnectionHelperClient(actuator_Id)
     # Send a POST request to actuator (THIS HAS NO EFFECT BESIDE THE OUTPUT LOG)
     # sending ID is not necessary, since the communication is 1:1
     response = clientCOAP.post("hatch", "command=open")
