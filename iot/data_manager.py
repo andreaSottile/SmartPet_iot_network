@@ -327,7 +327,7 @@ def register_actuator(candidate_id, node_type, node_address):
         partnerID = look_for_partner(node_type, target="Sensor")
         if partnerID > 0:
             # Found unpaired actuator
-            pair = Pair(nodeIdMQTT=candidate_id, nodeIdCOAP=partnerID)
+            pair = Pair(nodeIdMQTT=partnerID, nodeIdCOAP=candidate_id)
             live = LiveClient(nodeId=candidate_id, nodeType=node_type, isFree=False, isActuator=True,
                               nodeCoapAddress=node_address, lastInteraction=now)
             live.save()
