@@ -154,8 +154,7 @@ def check_hatch(hatch_id):
     try:
         latest = Hatch.objects.filter(hatchId=hatch_id).latest("time")
         print(str(latest))
-
-        if "othing" in str(latest.direction_Trigger):
+        if str(latest.direction_Trigger) == "0":
             print("received trigger 0 from " + str(hatch_id))
 
             return COMMAND_CLOSE_HATCH, hatch_id
