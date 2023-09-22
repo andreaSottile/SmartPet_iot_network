@@ -324,7 +324,7 @@ def register_actuator(candidate_id, node_type, node_address):
         now = timezone.now()
         # Looking for an unpaired Actuator Node of the same type of the sensor
         partnerID = look_for_partner(node_type, target="Sensor")
-        if partnerID > 0:
+        if partnerID != 0:
             # Found unpaired actuator
             pair = Pair(nodeIdMQTT=partnerID, nodeIdCOAP=candidate_id)
             live = LiveClient(nodeId=candidate_id, nodeType=node_type, isFree=False, isActuator=True,
@@ -361,6 +361,8 @@ def look_for_partner(node_type, target):
     else:
         return 0
     if live_client is not None:
+        live_client.isFree = False
+        live_client.save()
         return live_client.nodeId
     else:
         return 0
