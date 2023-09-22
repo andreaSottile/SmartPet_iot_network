@@ -1,7 +1,7 @@
 import threading
 from iot.COAP_server import CoAPServer
 from iot.data_manager import negotiate_id, flush_outdated_data, get_pair_object_from_sensor, update_last_interaction, \
-    collect_data
+    collect_data, unbind
 from iot.handler_HelperClient import getConnectionHelperClient
 from iot.mqttnode import MqttNode
 from iot.pubsubconfig import *
@@ -27,7 +27,7 @@ def boot(req):
     # create_grafana_dashboard(req)
 
     print("network starting up")
-    mqtt_listener = MqttNode(negotiate_function=negotiate_id, receive_function=receive)
+    mqtt_listener = MqttNode(negotiate_function=negotiate_id, receive_function=receive, disconnect_function=unbind)
 
     mqtt_thread = threading.Thread(target=mqtt_listener.task, args=(target_host_mqtt, target_port_mqtt), kwargs={})
     mqtt_thread.start()
