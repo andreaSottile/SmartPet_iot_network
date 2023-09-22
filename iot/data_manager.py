@@ -350,6 +350,8 @@ def flush_outdated_data():
         HeartBeatConfig.objects.all().delete()
     if LiveClient.objects.first() is not None:
         LiveClient.objects.all().delete()
+    if Pair.objects.first() is not None:
+        Pair.objects.all().delete()
 
 
 def look_for_partner(node_type, target):
