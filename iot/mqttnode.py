@@ -15,9 +15,10 @@ class MqttNode:
     broker = None
     receiver = None
 
-    def __init__(self, negotiate_function, receive_function):
+    def __init__(self, negotiate_function, receive_function, disconnect_function):
         self.broker = negotiate_function
         self.receiver = receive_function
+        self.killer = disconnect_function
 
     def task(self, *args):
         self.client = mqtt.Client()
@@ -45,10 +46,12 @@ class MqttNode:
             payload = str(msg.payload).replace("'", "")
             msg_fields = payload.split(" ")
 
+            if msg_fields[2] == "timeout":
+                # node has disconnected, remove it
+                self.killer(self, id_proposed=msg_fields[1], node_type=msg_fields[0][1:])
             if msg_fields[2] == "awakens":
                 # new node has connected, waiting for IP
                 self.broker(self, id_proposed=msg_fields[1], node_type=msg_fields[0][1:])
-            # remote nodes can only publish "awakens" action.
             # this thread (controller) is the only one able to publish other actions
         else:
             # digest message from sensors

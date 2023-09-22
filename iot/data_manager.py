@@ -369,8 +369,35 @@ def look_for_partner(node_type, target):
 
 
 def negotiate_id(node, id_proposed, node_type):
+    # mqtt sensor node is sending id_proposed. must respond if that id is ok or not
     result_msg = register_sensor(id_proposed, node_type)
     node.client.publish(TOPIC_ID_CONFIG, result_msg)
+
+
+def unbind(node, id_proposed, node_type):
+    # mqtt sensor node is in timeout. must delete its records if present
+    deadNode = LiveClient.objects.filter(nodeId=id_proposed, node_type=node_type).first()
+    if deadNode is not None:
+        destroy_pair(deadNode.nodeId)
+        deadNode.delete()
+
+
+def destroy_pair(dead_node_id):
+    pair = Pair.objects.filter(nodeIdCOAP=dead_node_id).first()
+    if pair is not None:
+        pair.nodeIdCOAP(pair.nodeIdMQTT)
+        pair.delete()
+    pair = Pair.objects.filter(nodeIdMQTT=dead_node_id).first()
+    if pair is not None:
+        detatch_pair(pair.nodeIdCOAP)
+        pair.delete()
+
+
+def detatch_pair(node_id):
+    partner = LiveClient.objects.filter(nodeId=node_id).first()
+    if partner is not None:
+        partner.isFree = True
+        partner.save()
 
 
 def get_pair_object_from_sensor(mqtt_node):
