@@ -154,8 +154,7 @@ def check_hatch(hatch_id):
     try:
         latest = Hatch.objects.filter(hatchId=hatch_id).latest("time")
         print(str(latest))
-
-        if "othing" in str(latest.direction_Trigger):
+        if str(latest.direction_Trigger) == "0":
             print("received trigger 0 from " + str(hatch_id))
 
             return COMMAND_CLOSE_HATCH, hatch_id
@@ -327,7 +326,7 @@ def register_actuator(candidate_id, node_type, node_address):
         partnerID = look_for_partner(node_type, target="Sensor")
         if partnerID > 0:
             # Found unpaired actuator
-            pair = Pair(nodeIdMQTT=candidate_id, nodeIdCOAP=partnerID)
+            pair = Pair(nodeIdMQTT=partnerID, nodeIdCOAP=candidate_id)
             live = LiveClient(nodeId=candidate_id, nodeType=node_type, isFree=False, isActuator=True,
                               nodeCoapAddress=node_address, lastInteraction=now)
             live.save()
