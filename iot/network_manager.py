@@ -84,7 +84,7 @@ def close_refiller(actuator_Id):
 
 def close_hatch(actuator_Id):
     clientCOAP = getConnectionHelperClient(actuator_Id)
-    # Send a POST request to actuator (THIS HAS NO EFFECT BESIDE THE OUTPUT LOG)
+    # Send a POST request to actuator
     # sending ID is not necessary, since the communication is 1:1
     response = clientCOAP.post("hatch", "command=close")
     if response.code == 67:
@@ -95,7 +95,7 @@ def close_hatch(actuator_Id):
 
 def open_hatch(actuator_Id):
     clientCOAP = getConnectionHelperClient(actuator_Id)
-    # Send a POST request to actuator (THIS HAS NO EFFECT BESIDE THE OUTPUT LOG)
+    # Send a POST request to actuator
     # sending ID is not necessary, since the communication is 1:1
     response = clientCOAP.post("hatch", "command=open")
     if response.code == 67:

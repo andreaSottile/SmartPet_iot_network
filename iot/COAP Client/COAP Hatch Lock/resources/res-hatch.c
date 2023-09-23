@@ -114,7 +114,7 @@ static void res_post_handler(coap_message_t *request, coap_message_t *response, 
     if (strncmp(command, "close", len) == 0){
       LOG_INFO("close");
       coap_set_status_code(response,VALID_2_03);
-      rgb_led_off();
+      led_single_off(RGB_LED_GREEN);
       status = 0;
       success = 1;
     }
@@ -122,7 +122,7 @@ static void res_post_handler(coap_message_t *request, coap_message_t *response, 
     else if (strncmp(command, "open", len) == 0){
       LOG_INFO("open");
       coap_set_status_code(response,VALID_2_03);
-      rgb_led_set(RGB_LED_GREEN);
+      led_single_on(RGB_LED_GREEN);
       status = 1;
       success = 1;
     }
