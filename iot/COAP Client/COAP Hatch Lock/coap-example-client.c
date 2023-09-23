@@ -107,7 +107,6 @@ if(debug_mode)
     printf("\n--state Registered--\n");
     coap_activate_resource(&res_status, "hatch");
     etimer_set(&et, TOGGLE_INTERVAL);
-    rgb_led_set(RGB_LED_GREEN);
 
     if(button) {
         // Prints all the information about the button
