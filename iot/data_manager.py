@@ -107,6 +107,11 @@ def check_food_level(cid):
     # check food level against requirements
     try:
         latest = Food.objects.filter(containerID=cid).order_by("-time")[:2]
+
+        if len(latest) < 2:
+            # not enough elements collected
+            return 0, 0
+
         if latest[0].lvl > top:
             display_alert("CRITICAL WARNING: food bowl " + str(cid) + " is overfilled")
         if latest[0].lvl < bottom:
