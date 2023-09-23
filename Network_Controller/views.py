@@ -116,14 +116,14 @@ def real_time_hatch(request):
 
 
 def real_time_live_clients(request):
-    data = LiveClient.objects.order_by('-lastInteraction')[:100].values('nodeId', 'nodeCoapName', 'nodeCoapAddress',
+    data = LiveClient.objects.order_by('-lastInteraction')[:100].values('nodeId', 'nodeCoapAddress',
                                                                         'nodeType', 'isFree', 'isActuator',
                                                                         'lastInteraction')
     return JsonResponse(list(data), safe=False)
 
 
 def client_list(request):
-    clients = LiveClient.objects.order_by('-lastInteraction')[:100].values('nodeId', 'nodeCoapName', 'nodeCoapAddress',
+    clients = LiveClient.objects.order_by('-lastInteraction')[:100].values('nodeId', 'nodeCoapAddress',
                                                                            'nodeType', 'isFree', 'isActuator',
                                                                            'lastInteraction')
     print(clients)
