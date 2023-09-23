@@ -17,10 +17,9 @@ import struct
 from coapthon.messages.option import Option
 
 from iot.data_manager import register_actuator
+from iot.pubsubconfig import debug_mode
 
 logger = logging.getLogger(__name__)
-
-debug_mode = False
 
 
 class ResExample(Resource):

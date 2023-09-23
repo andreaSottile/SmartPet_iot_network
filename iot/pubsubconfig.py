@@ -17,3 +17,5 @@ COMMAND_REFILL_STOP_FOOD = "stop_refill"
 
 COMMAND_ID_REGISTER = "%s %d awakens"
 COMMAND_ID_DENY = "%s %d denied"
+
+debug_mode = False

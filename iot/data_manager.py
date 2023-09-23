@@ -101,34 +101,36 @@ def check_food_level(cid):
         bottom = config.lvlMin
     except FoodConfig.DoesNotExist:
         pass  # not a problem, using default config values
-    print("food config: " + str(bottom) + " " + str(stop) + " " + str(start) + " " + str(top))
+    if debug_mode:
+        print("food config: " + str(bottom) + " " + str(stop) + " " + str(start) + " " + str(top))
 
     # check food level against requirements
     try:
-        latest = Food.objects.latest("time")
-        print(str(latest))
-        if latest.lvl > top:
+        latest = Food.objects.filter(containerID=cid).order_by("-time")[:2]
+        if latest[0].lvl > top:
             display_alert("CRITICAL WARNING: food bowl " + str(cid) + " is overfilled")
-        if latest.lvl < bottom:
+        if latest[0].lvl < bottom:
             display_alert("CRITICAL WARNING: food bowl " + str(cid) + " must be checked")
 
         # if below required level
-        if latest.lvl < start:
-            # action: refill target bowl
-            return COMMAND_REFILL_START_FOOD, cid
+        if latest[0].lvl < start:
+            # and it's not already refilling
+            if latest[0].lvl <= latest[1].lvl:
+                # action: refill target bowl
+                return COMMAND_REFILL_START_FOOD, cid
 
         # if above max level
-        if latest.lvl > stop:
-            # action: refill target is finished
-            return COMMAND_REFILL_STOP_FOOD, cid
+        if latest[0].lvl > stop:
+            # and it's still refilling
+            if latest[0].lvl > latest[1].lvl:
+                # action: refill target is finished
+                return COMMAND_REFILL_STOP_FOOD, cid
 
         # else, no action to do
         return 0, 0
 
     except Food.DoesNotExist:
         return 0, 0  # no previous record detected, no action to perform
-    # default case, should be unreachable / permission denied: no action to do, hatch stay closed
-    return 0, 0
 
 
 def check_hatch(hatch_id):
@@ -150,10 +152,11 @@ def check_hatch(hatch_id):
     except HatchConfig.DoesNotExist:
         pass  # not a problem, using default config values
 
-    print("Permission : " + str(open_permission))
+    if debug_mode:
+        print("Permission : " + str(open_permission))
     try:
         latest = Hatch.objects.filter(hatchId=hatch_id).latest("time")
-        print(str(latest))
+
         if str(latest.direction_Trigger) == "0":
             print("received trigger 0 from " + str(hatch_id))
 
@@ -186,7 +189,8 @@ def check_heartbeat(petId):
         high, low = config.high_Threshold, config.low_Threshold
     except HeartBeatConfig.DoesNotExist:
         pass  # not a problem, using default config values
-    print("Heartbeat config: " + str(low) + " " + str(high))
+    if debug_mode:
+        print("Heartbeat config: " + str(low) + " " + str(high))
     try:
         latest = Heartbeat.objects.filter(petID=petId).latest("time")
 
@@ -376,7 +380,7 @@ def negotiate_id(node, id_proposed, node_type):
 
 def unbind(node, id_proposed, node_type):
     # mqtt sensor node is in timeout. must delete its records if present
-    deadNode = LiveClient.objects.filter(nodeId=id_proposed, node_type=node_type).first()
+    deadNode = LiveClient.objects.filter(nodeId=id_proposed, nodeType=node_type).first()
     if deadNode is not None:
         destroy_pair(deadNode.nodeId)
         deadNode.delete()
