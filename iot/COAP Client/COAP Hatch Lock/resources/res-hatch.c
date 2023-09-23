@@ -114,7 +114,7 @@ static void res_post_handler(coap_message_t *request, coap_message_t *response, 
     if (strncmp(command, "close", len) == 0){
       LOG_INFO("close");
       coap_set_status_code(response,VALID_2_03);
-      rgb_led_off(RGB_LED_GREEN);
+      rgb_led_off();
       status = 0;
       success = 1;
     }
