@@ -467,8 +467,15 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
                         printf("Node %d still waiting for id negotiation \n", candidateID);
                         if (counter > 5) {
                             // wait is too long. controller probably forgot about me.
-                            boot = BOOT_ID_DENIED;
                             printf("Exceeded idle time for %d; restarting id negotiation \n", candidateID);
+                            sprintf(app_buffer, "%s %d timeout", NODE_TYPE, candidateID);
+                            sprintf(pub_topic, "%s", TOPIC_ID_CONFIG);
+                            status_Publish = mqtt_publish(&conn, NULL, pub_topic, (uint8_t *) app_buffer, strlen(app_buffer), MQTT_QOS_LEVEL_0,
+                                MQTT_RETAIN_OFF);
+                            if (status_Publish == 0) {
+                                boot = BOOT_ID_DENIED;
+                            }
+                            else{ printf("Wait to publish because the Client queue is full \n");}
                         }
                     }
                 }
