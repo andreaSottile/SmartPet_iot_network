@@ -293,7 +293,7 @@ void trigger_sensor(int sensor_status) {
                 sprintf(pub_topic, "%s", TOPIC_SENSOR_DATA);
 
                 sprintf(app_buffer, PUBLISH_MSG_TEMPLATE, hatchId, sensor_status);
-                printf("Hatch sensor publish trigger in %d \n", sensor_status);
+                printf("Hatch sensor %d publish trigger in %d \n", hatchId, sensor_status);
                 mqtt_publish(&conn, NULL, pub_topic, (uint8_t *) app_buffer, strlen(app_buffer),
                              MQTT_QOS_LEVEL_0, MQTT_RETAIN_OFF);
             } else if (state == STATE_DISCONNECTED) {
@@ -398,7 +398,7 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
                 pet_behavior_wait = 5 + (int) random_rand() % 10;
                 // new random position (it teleports? it's fine for a simulation)
                 currentPetLocation = (random_rand() % 3);
-                printf("Hatch sensor pet location %d \n", currentPetLocation);
+                printf("Hatch sensor %d pet location %d \n", hatchId, currentPetLocation);
             } else
                 pet_behavior_wait--;
             // reset timer

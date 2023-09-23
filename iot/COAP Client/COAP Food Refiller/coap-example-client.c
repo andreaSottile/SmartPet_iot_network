@@ -112,7 +112,7 @@ if(debug_mode)
     printf("\n--state Registered--\n");
     coap_activate_resource(&res_status, "food");
     etimer_set(&et, TOGGLE_INTERVAL);
-    rgb_led_set(RGB_LED_GREEN);
+    //rgb_led_set(RGB_LED_GREEN);
 
     if(button) {
         // Prints all the information about the button
@@ -171,7 +171,7 @@ if(debug_mode)            printf("Connection method: %s",COAP_GET);
                 if(debug_mode)
                     printf("Food Actuator: init \n");
                 self_id = 501 + (int) random_rand() % 500;
-                snprintf(msg, sizeof(msg),"food_%d", self_id);
+                snprintf(msg, sizeof(msg),"food_%d", self_id);food
                 printf("Food Actuator %d: Communicating id \n", self_id);
                 state = STATE_REGISTERING;
                 coap_endpoint_parse(SERVER_EP, strlen(SERVER_EP), &serverCoap);

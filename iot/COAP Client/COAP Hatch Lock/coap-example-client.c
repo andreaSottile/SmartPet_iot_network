@@ -144,7 +144,7 @@ if(debug_mode)
             printf("\n--state in release button %d--\n", state);
             self_id = 501 + (int) random_rand() % 500;
             snprintf(msg, sizeof(msg),"hatch_%d", self_id);
-            printf("Food Actuator %d: Communicating id \n", self_id);
+            printf("Hatch Actuator %d: Communicating id \n", self_id);
             state = STATE_REGISTERING;
             coap_endpoint_parse(SERVER_EP, strlen(SERVER_EP), &serverCoap);
             coap_init_message(request, COAP_TYPE_CON, COAP_GET, 0);
