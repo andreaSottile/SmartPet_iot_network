@@ -54,19 +54,6 @@ int status=0;
 #define RGB_LED_CYAN    (RGB_LED_GREEN | RGB_LED_BLUE )
 #define RGB_LED_WHITE   (RGB_LED_RED | RGB_LED_GREEN | RGB_LED_BLUE)
 
-void rgb_led_off(void) {
-    leds_off(LEDS_ALL);
-}
-
-void rgb_led_set(uint8_t colour) {
-    leds_mask_t leds =
-            ((colour & RGB_LED_RED) ? LEDS_RED : LEDS_COLOUR_NONE) |
-            ((colour & RGB_LED_GREEN) ? LEDS_GREEN : LEDS_COLOUR_NONE) |
-            ((colour & RGB_LED_BLUE) ? LEDS_BLUE : LEDS_COLOUR_NONE);
-
-    leds_off(LEDS_ALL);
-    leds_on(leds);
-}
 
 /*---------------------------------------------------------------------------*/
 
@@ -106,15 +93,10 @@ static void res_post_handler(coap_message_t *request, coap_message_t *response, 
   size_t len = 0;
   const char *command = NULL;
   int success = 0;
-  LOG_INFO("post");
   if ((len = coap_get_post_variable(request, "command", &command))){
-    LOG_DBG("command_hatch %s\n", command);
-    printf("command_hatch %s\n", command);
-    // status == 0 (hatch close)
+    LOG_INFO("command: hatch %s\n", command);
     if (strncmp(command, "close", len) == 0){
-      LOG_INFO("close");
       coap_set_status_code(response,VALID_2_03);
-      //led_single_off(RGB_LED_GREEN);
       leds_off(LEDS_ALL);
       leds_single_on(LEDS_RED);
       status = 0;
@@ -122,9 +104,7 @@ static void res_post_handler(coap_message_t *request, coap_message_t *response, 
     }
     // status == 1 (hatch open)
     else if (strncmp(command, "open", len) == 0){
-      LOG_INFO("open");
       coap_set_status_code(response,VALID_2_03);
-      //led_single_on(RGB_LED_GREEN);
       leds_off(LEDS_ALL);
       leds_single_on(LEDS_GREEN);
       status = 1;

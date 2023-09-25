@@ -47,27 +47,14 @@ int status=0;
 
 /*---------------------------------------------------------------------------*/
 /* Led manipulation */
-#define RGB_LED_RED     1
-#define RGB_LED_GREEN   2
+#define RGB_LED_RED     2
+#define RGB_LED_GREEN   1
 #define RGB_LED_BLUE    4
 #define RGB_LED_MAGENTA (RGB_LED_RED | RGB_LED_BLUE)
 #define RGB_LED_YELLOW  (RGB_LED_RED | RGB_LED_GREEN)
 #define RGB_LED_CYAN    (RGB_LED_GREEN | RGB_LED_BLUE )
 #define RGB_LED_WHITE   (RGB_LED_RED | RGB_LED_GREEN | RGB_LED_BLUE)
 
-void rgb_led_off(void) {
-    leds_off(LEDS_ALL);
-}
-
-void rgb_led_set(uint8_t colour) {
-    leds_mask_t leds =
-            ((colour & RGB_LED_RED) ? LEDS_RED : LEDS_COLOUR_NONE) |
-            ((colour & RGB_LED_GREEN) ? LEDS_GREEN : LEDS_COLOUR_NONE) |
-            ((colour & RGB_LED_BLUE) ? LEDS_BLUE : LEDS_COLOUR_NONE);
-
-    leds_off(LEDS_ALL);
-    leds_on(leds);
-}
 
 /*---------------------------------------------------------------------------*/
 
@@ -105,11 +92,10 @@ static void res_post_handler(coap_message_t *request, coap_message_t *response, 
   const char *command = NULL;
   int success  = 0;
   if((len = coap_get_post_variable(request, "command", &command))) {
-    LOG_DBG("command_food_refiller %s\n", command);
-    printf("command_food %s\n", command);
+
+    LOG_INFO("command: food refiller %s\n", command);
     // status == 0 (food refiller close)
     if (strncmp(command, "close", len) == 0){
-      LOG_INFO("close");
       coap_set_status_code(response,VALID_2_03);
       rgb_led_set(RGB_LED_RED);
       leds_single_on(LEDS_RED);
@@ -118,7 +104,6 @@ static void res_post_handler(coap_message_t *request, coap_message_t *response, 
     }
     // status == 1 (food refiller open)
     else if (strncmp(command, "open", len) == 0){
-      LOG_INFO("open");
       coap_set_status_code(response,VALID_2_03);
       //rgb_led_set(RGB_LED_GREEN);
       leds_single_on(LEDS_GREEN);
