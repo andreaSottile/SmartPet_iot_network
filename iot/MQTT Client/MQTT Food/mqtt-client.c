@@ -286,7 +286,7 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
         if (etimer_expired(&meal_timer)) {
             meal_time(&foodLevel);
             etimer_reset(&meal_timer);
-            if(debug_mode):
+            if(debug_mode)
                 printf("Foodsensor: gnam %d \n", foodLevel);
 
         }
