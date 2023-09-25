@@ -157,7 +157,7 @@ PROCESS_THREAD(actuator_node, ev, data) {
 
             if(debug_mode)
                 printf("\n--state on periodic timer %d--\n", state);
-            if((state == STATE_REGISTERING)||((auto_register)&&(state == STATE_INIT)){
+            if((state == STATE_REGISTERING)||((auto_register)&&(state == STATE_INIT))){
              // condition to communicate status: state == state_registering
              // for debug steps, it was useful to also make it work in state_init. therefore,
              //auto_register is #defined false, and can be reverted to true to avoid pressing buttons in debug phase
