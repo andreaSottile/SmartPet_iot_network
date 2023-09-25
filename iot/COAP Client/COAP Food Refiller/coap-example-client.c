@@ -54,7 +54,7 @@
 #define TOGGLE_INTERVAL    (10 * CLOCK_SECOND)
 
 #define debug_mode false
-
+#define auto_register false
 char *service_url = "/hello";
 
 
@@ -89,8 +89,8 @@ void client_chunk_handler(coap_message_t *response) {
     if (state == STATE_REGISTERING){
         state = STATE_REGISTERED;
 
-if(debug_mode)
-        printf("\n--state Registered--\n");
+        if(debug_mode)
+            printf("\n--state Registered--\n");
         }
 }
 
@@ -108,8 +108,8 @@ PROCESS_THREAD(actuator_node, ev, data) {
     char msg[32];
     state = STATE_INIT;
 
-if(debug_mode)
-    printf("\n--state Registered--\n");
+    if(debug_mode)
+        printf("\n--state Registered--\n");
     coap_activate_resource(&res_status, "food");
     etimer_set(&et, TOGGLE_INTERVAL);
     //rgb_led_set(RGB_LED_GREEN);
@@ -117,8 +117,8 @@ if(debug_mode)
     if(button) {
         // Prints all the information about the button
 
-if(debug_mode)
-        printf("%s on pin %u with ID=0, Logic=%s, Pull=%s\n",
+        if(debug_mode)
+            printf("%s on pin %u with ID=0, Logic=%s, Pull=%s\n",
         BUTTON_HAL_GET_DESCRIPTION(button), button->pin,
         button->negative_logic ? "Negative" : "Positive",
         button->pull == GPIO_HAL_PIN_CFG_PULL_UP ? "Pull Up" : "Pull Down");
@@ -136,13 +136,14 @@ if(debug_mode)
             }
         if(ev == button_hal_release_event) {
 
-if(debug_mode)
-            printf("Server address configured: %s",SERVER_EP);
+            if(debug_mode)
+                printf("Server address configured: %s",SERVER_EP);
 
-if(debug_mode)
-printf("Connection type configured: %s",COAP_TYPE_CON);
+            if(debug_mode)
+                printf("Connection type configured: %s",COAP_TYPE_CON);
 
-if(debug_mode)            printf("Connection method: %s",COAP_GET);
+            if(debug_mode)
+                printf("Connection method: %s",COAP_GET);
 
             button = (button_hal_button_t *)data;
 
@@ -165,13 +166,18 @@ if(debug_mode)            printf("Connection method: %s",COAP_GET);
 
             if(debug_mode)
                 printf("\n--state on periodic timer %d--\n", state);
-            if((state == STATE_INIT)||(state == STATE_REGISTERING)){
-            // In a real application, MAC address is to be used instead of random
+
+            if((state == STATE_REGISTERING)||((auto_register)&&(state == STATE_INIT)){
+
+             // condition to communicate status: state == state_registering
+             // for debug steps, it was useful to also make it work in state_init. therefore,
+             //auto_register is #defined false, and can be reverted to true to avoid pressing buttons in debug phase
 
                 if(debug_mode)
                     printf("Food Actuator: init \n");
+                    // In a real application, MAC address is to be used instead of random
                 self_id = 501 + (int) random_rand() % 500;
-                snprintf(msg, sizeof(msg),"food_%d", self_id);food
+                snprintf(msg, sizeof(msg),"food_%d", self_id);
                 printf("Food Actuator %d: Communicating id \n", self_id);
                 state = STATE_REGISTERING;
                 coap_endpoint_parse(SERVER_EP, strlen(SERVER_EP), &serverCoap);
@@ -179,20 +185,22 @@ if(debug_mode)            printf("Connection method: %s",COAP_GET);
                 coap_set_header_uri_path(request, service_url);
                 coap_set_payload(request, (uint8_t *) msg, sizeof(msg) - 1);
                 COAP_BLOCKING_REQUEST(&serverCoap, request, client_chunk_handler);
-                LOG_INFO("--Node Registering--\n");
+                if(debug_mode)
+                    LOG_INFO("--Node Registering--\n");
 
                 if(debug_mode)
-                printf("dopo blocking request \n");
+                    printf("dopo blocking request \n");
            }
             if(state == STATE_REGISTERED){
                 char msg[32];
                     snprintf(msg, sizeof(msg),"food_%d", self_id);
                     coap_set_payload(request, (uint8_t *) msg, sizeof(msg) - 1);
                     COAP_BLOCKING_REQUEST(&serverCoap, request, client_chunk_handler);
-                    LOG_INFO("--%d Keepalive--\n", self_id);
+                    if(debug_mode)
+                        LOG_INFO("--%d Keepalive--\n", self_id);
             }
-if(debug_mode)
-            printf("\n--reset Timer--\n");
+            if(debug_mode)
+                printf("\n--reset Timer--\n");
             etimer_set(&et, TOGGLE_INTERVAL);
 
         }
