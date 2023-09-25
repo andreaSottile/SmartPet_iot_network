@@ -45,16 +45,6 @@
 int status=0;
 
 /*---------------------------------------------------------------------------*/
-/* Led manipulation */
-#define RGB_LED_RED     2
-#define RGB_LED_GREEN   1   // actually, 2 is YELLOW
-#define RGB_LED_BLUE    4
-#define RGB_LED_MAGENTA (RGB_LED_RED | RGB_LED_BLUE)
-#define RGB_LED_YELLOW  (RGB_LED_RED | RGB_LED_GREEN)
-#define RGB_LED_CYAN    (RGB_LED_GREEN | RGB_LED_BLUE )
-#define RGB_LED_WHITE   (RGB_LED_RED | RGB_LED_GREEN | RGB_LED_BLUE)
-
-
 /*---------------------------------------------------------------------------*/
 
 static void res_get_handler(coap_message_t *request, coap_message_t *response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset);

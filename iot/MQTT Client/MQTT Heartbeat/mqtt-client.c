@@ -46,7 +46,6 @@
 #include <strings.h>
 
 #include "dev/leds.h"
-#include "dev/rgb-led/rgb-led.h"
 /*---------------------------------------------------------------------------*/
 #define LOG_MODULE "mqtt-client-heartbeat"
 #ifdef MQTT_CLIENT_CONF_LOG_LEVEL
@@ -66,32 +65,8 @@ static const char *broker_ip = MQTT_CLIENT_BROKER_IP_ADDR;
 #define DEFAULT_PUBLISH_INTERVAL    (5 * CLOCK_SECOND)
 
 /*---------------------------------------------------------------------------*/
-/* Led manipulation */
-#define RGB_LED_RED     1
-#define RGB_LED_GREEN   2
-#define RGB_LED_BLUE    4
-#define RGB_LED_MAGENTA (RGB_LED_RED | RGB_LED_BLUE)
-#define RGB_LED_YELLOW  (RGB_LED_RED | RGB_LED_GREEN)
-#define RGB_LED_CYAN    (RGB_LED_GREEN | RGB_LED_BLUE )
-#define RGB_LED_WHITE   (RGB_LED_RED | RGB_LED_GREEN | RGB_LED_BLUE)
 
-void rgb_led_off(void) {
-    leds_off(LEDS_ALL);
-}
-
-void rgb_led_set(uint8_t colour) {
-    leds_mask_t leds =
-            ((colour & RGB_LED_RED) ? LEDS_RED : LEDS_COLOUR_NONE) |
-            ((colour & RGB_LED_GREEN) ? LEDS_GREEN : LEDS_COLOUR_NONE) |
-            ((colour & RGB_LED_BLUE) ? LEDS_BLUE : LEDS_COLOUR_NONE);
-
-    leds_off(LEDS_ALL);
-    leds_on(leds);
-}
-
-// We assume that the broker does not require authentication
-
-
+#define debug_mode false
 /*---------------------------------------------------------------------------*/
 /* Various states */
 static uint8_t state;
@@ -160,8 +135,7 @@ mqtt_status_t status_Publish;
 char broker_address[CONFIG_IP_ADDR_STR_LEN];
 
 /*---------------------------------------------------------------------------*/
-PROCESS(mqtt_client_process,
-"MQTT Client heartbeat sensor");
+PROCESS(mqtt_client_process,"MQTT Client heartbeat sensor");
 
 static int heartbeat;
 unsigned short candidateID = 0;
@@ -185,6 +159,9 @@ static void pub_handler(const char *topic, uint16_t topic_len, const uint8_t *ch
             boot = BOOT_COMPLETED;
             printf("Heartsensor: State Presubscribed & Boot Completed\n");
             //printf("boot %d, state %d", boot, state);
+
+            leds_off(LEDS_ALL);
+            leds_single_on(LEDS_GREEN);
         } else {
             snprintf(msg_template, sizeof(msg_template), "%s %d denied", NODE_TYPE, candidateID);
             if (strcmp((const char *) chunk, msg_template) == 0) {
@@ -274,7 +251,9 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
     // Initialize periodic timer to check the status
     etimer_set(&periodic_timer, DEFAULT_PUBLISH_INTERVAL);
 	etimer_set(&sub_timer, DEFAULT_PUBLISH_INTERVAL);
-    rgb_led_set(RGB_LED_RED);
+
+    leds_off(LEDS_ALL);
+    leds_single_on(LEDS_YELLOW);
     boot = BOOT_INIT;
     /* Main loop */
     printf("Heartsensor boot %d \n", boot);
@@ -286,7 +265,6 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
             if(state == STATE_PRESUBSCRIBED){
                       state = STATE_SUBSCRIBED;
                       printf("Heartsensor: State Subscribed\n");
-                      printf("Heartsensor boot %d state %d \n", boot, state);
             }
         }
         if ((ev == PROCESS_EVENT_TIMER && data == &periodic_timer) || ev == PROCESS_EVENT_POLL) {
@@ -304,14 +282,12 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
                              MQTT_CLEAN_SESSION_ON);
                 state = STATE_CONNECTING;
 	            printf("Heartsensor: state connecting \n");
-                printf("Heartsensor boot %d \n", boot);
             }
 
             if (state == STATE_CONNECTED) {
                 if (boot == BOOT_INIT) {
                     // Subscribe to a topic
                     strcpy(sub_topic, TOPIC_ID_CONFIG);
-                    printf("subtopic: %s\n", sub_topic);
                     statusId_config = mqtt_subscribe(&conn, NULL, sub_topic, MQTT_QOS_LEVEL_0);
                     printf("Subscribing to Id Config\n");
                     if (statusId_config == MQTT_STATUS_OUT_QUEUE_FULL) {
@@ -336,7 +312,6 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
                             // id negotiation: ask controller for Id approval
                             sprintf(app_buffer, "%s %d awakens", NODE_TYPE, candidateID);
                             sprintf(pub_topic, "%s", TOPIC_ID_CONFIG);
-                            printf("%s \n", app_buffer);
                             counter =1;
                         }
                         status_Publish = mqtt_publish(&conn, NULL, pub_topic, (uint8_t *) app_buffer, strlen(app_buffer), MQTT_QOS_LEVEL_0,
@@ -377,9 +352,10 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
             }
             if (state == STATE_DISCONNECTED) {
                 printf("Heartsensor %d: disconnected \n", tagId);
-                LOG_ERR("Disconnected from MQTT broker\n");
                 boot = BOOT_INIT;
-                rgb_led_set(RGB_LED_RED);
+
+                leds_off(LEDS_ALL);
+                leds_single_on(LEDS_RED);
                 // Recover from error
                 state = STATE_INIT;
                 counter=0;

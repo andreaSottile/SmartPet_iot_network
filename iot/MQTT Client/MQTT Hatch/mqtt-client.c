@@ -46,7 +46,6 @@
 #include <strings.h>
 
 #include "dev/leds.h"
-#include "dev/rgb-led/rgb-led.h"
 /*---------------------------------------------------------------------------*/
 #define LOG_MODULE "mqtt-client-hatch"
 #ifdef MQTT_CLIENT_CONF_LOG_LEVEL
@@ -55,6 +54,8 @@
 #define LOG_LEVEL LOG_LEVEL_DBG
 #endif
 
+
+#define debug_mode false
 /*---------------------------------------------------------------------------*/
 /* MQTT broker address. */
 #define MQTT_CLIENT_BROKER_IP_ADDR "fd00::1"
@@ -75,29 +76,6 @@ static const char *broker_ip = MQTT_CLIENT_BROKER_IP_ADDR;
 #define TRIGGER_NONE 0
 
 /*---------------------------------------------------------------------------*/
-/* Led manipulation */
-#define RGB_LED_RED     1
-#define RGB_LED_GREEN   2
-#define RGB_LED_BLUE    4
-#define RGB_LED_MAGENTA (RGB_LED_RED | RGB_LED_BLUE)
-#define RGB_LED_YELLOW  (RGB_LED_RED | RGB_LED_GREEN)
-#define RGB_LED_CYAN    (RGB_LED_GREEN | RGB_LED_BLUE )
-#define RGB_LED_WHITE   (RGB_LED_RED | RGB_LED_GREEN | RGB_LED_BLUE)
-
-void rgb_led_off(void) {
-    leds_off(LEDS_ALL);
-}
-
-void rgb_led_set(uint8_t colour) {
-    leds_mask_t leds =
-            ((colour & RGB_LED_RED) ? LEDS_RED : LEDS_COLOUR_NONE) |
-            ((colour & RGB_LED_GREEN) ? LEDS_GREEN : LEDS_COLOUR_NONE) |
-            ((colour & RGB_LED_BLUE) ? LEDS_BLUE : LEDS_COLOUR_NONE);
-
-    leds_off(LEDS_ALL);
-    leds_on(leds);
-}
-
 /*---------------------------------------------------------------------------*/
 /* Various states */
 static uint8_t state;
@@ -197,8 +175,9 @@ static void pub_handler(const char *topic, uint16_t topic_len, const uint8_t *ch
            	state = STATE_PRESUBSCRIBED;
             boot = BOOT_COMPLETED;
             printf("Hatchsensor: State Presubscribed & Boot Completed\n");
-            printf("boot %d, state %d \n", boot, state);
 
+            leds_off(LEDS_ALL);
+            leds_single_on(LEDS_GREEN);
         } else {
             snprintf(msg_template, sizeof(msg_template), "%s %d denied", NODE_TYPE, candidateID);
             if (strcmp((const char *) chunk, msg_template) == 0) { // controlled rejected Id proposal
@@ -212,14 +191,12 @@ static void pub_handler(const char *topic, uint16_t topic_len, const uint8_t *ch
             snprintf(msg_template, sizeof(msg_template), "%d open", hatchId);
             if (strcmp((const char *) chunk, msg_template) == 0) {
                 LOG_INFO("Hatch %d opening \n", hatchId);
-                printf("Hatch %d opening \n", hatchId);
                 hatch_open = true;
             } else {
                 snprintf(msg_template, sizeof(msg_template), "%d close", hatchId);
                 if (strcmp((const char *) chunk, msg_template) == 0) {
 
                     LOG_INFO("Hatch %d closed \n", hatchId);
-                    printf("Hatch %d closed \n", hatchId);
                     hatch_open = false;
                 }
             }
@@ -293,13 +270,16 @@ void trigger_sensor(int sensor_status) {
                 sprintf(pub_topic, "%s", TOPIC_SENSOR_DATA);
 
                 sprintf(app_buffer, PUBLISH_MSG_TEMPLATE, hatchId, sensor_status);
-                printf("Hatch sensor %d publish trigger in %d \n", hatchId, sensor_status);
+
+                printf("Hatch sensor %d published a trigger detected %d \n", hatchId, sensor_status);
                 mqtt_publish(&conn, NULL, pub_topic, (uint8_t *) app_buffer, strlen(app_buffer),
                              MQTT_QOS_LEVEL_0, MQTT_RETAIN_OFF);
             } else if (state == STATE_DISCONNECTED) {
                 LOG_ERR("Disconnected from MQTT broker\n");
                 boot = BOOT_FAILED;
-                rgb_led_set(RGB_LED_RED);
+                leds_off(LEDS_ALL);
+                leds_single_on(LEDS_RED);
+
                 // Recover from error
                 state = STATE_INIT;
             }
@@ -340,7 +320,9 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
 
     // Initialize periodic timer to check the status
 
-    rgb_led_set(RGB_LED_RED);
+    leds_off(LEDS_ALL);
+    leds_single_on(LEDS_YELLOW);
+
     /* Main loop */
     while (1) {
 
@@ -358,7 +340,6 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
         // hatch closing: wait for a delay after pet is detected
         if (flag_for_timer == 1){
             if(etimer_expired(&sensor_timer)){
-                printf("prova if timer \n");
                 if (currentPetLocation == TRIGGER_NONE) {
                     // close hatch only if pet is away
                     trigger_sensor(currentPetLocation);
@@ -373,7 +354,7 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
         if (etimer_expired(&sub_timer)) {
             if(state == STATE_PRESUBSCRIBED){
             strcpy(sub_topic, TOPIC_ACTUATOR);
-            printf("subtopic act: %s\n", sub_topic);
+            printf("Subscribing to topic : %s\n", sub_topic);
             status_HatchTopic = mqtt_subscribe(&conn, NULL, sub_topic, MQTT_QOS_LEVEL_0);
             if (status_HatchTopic == MQTT_STATUS_OUT_QUEUE_FULL) {
               LOG_ERR("Tried to subscribe but command queue was full!\n");
@@ -386,7 +367,6 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
             else {
                   state = STATE_SUBSCRIBED;
                   printf("Hatch sensor: State Subscribed\n");
-                  printf("Hatch sensor boot %d state %d \n", boot, state);
                   flag_for_timer = 1;
                 }
             }
@@ -419,13 +399,11 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
                              MQTT_CLEAN_SESSION_ON);
                 state = STATE_CONNECTING;
                 printf("Hatch sensor: state connecting \n");
-                printf("Hatch sensor boot %d \n", boot);
             }
             if (state == STATE_CONNECTED) {
                 if (boot == BOOT_INIT)
                     { // Subscribe to a topic
                     strcpy(sub_topic, TOPIC_ID_CONFIG);
-                    printf("subtopic: %s\n", sub_topic);
                     statusId_config = mqtt_subscribe(&conn, NULL, sub_topic, MQTT_QOS_LEVEL_0);
                     printf("Subscribing to Id Config\n");
                     if (statusId_config == MQTT_STATUS_OUT_QUEUE_FULL) {
@@ -450,7 +428,6 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
                             // id negotiation: ask controller for Id approval
                             sprintf(app_buffer, "%s %d awakens", NODE_TYPE, candidateID);
                             sprintf(pub_topic, "%s", TOPIC_ID_CONFIG);
-                            printf("%s \n", app_buffer);
                             counter =1;
                         }
                         status_Publish = mqtt_publish(&conn, NULL, pub_topic, (uint8_t *) app_buffer, strlen(app_buffer), MQTT_QOS_LEVEL_0,
@@ -485,9 +462,10 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
 
             if (state == STATE_DISCONNECTED) {
                 printf("Hatch sensor %d: disconnected \n", hatchId);
-                LOG_ERR("Disconnected from MQTT broker\n");
                 boot = BOOT_INIT;
-                rgb_led_set(RGB_LED_RED);
+                leds_off(LEDS_ALL);
+                leds_single_on(LEDS_RED);
+
                 // Recover from error
                 state = STATE_INIT;
                 counter=0;

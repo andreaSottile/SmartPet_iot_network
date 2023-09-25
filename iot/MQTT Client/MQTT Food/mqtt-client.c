@@ -46,7 +46,6 @@
 #include <strings.h>
 
 #include "dev/leds.h"
-#include "dev/rgb-led/rgb-led.h"
 /*---------------------------------------------------------------------------*/
 #define LOG_MODULE "mqtt-client-food"
 #ifdef MQTT_CLIENT_CONF_LOG_LEVEL
@@ -54,6 +53,8 @@
 #else
 #define LOG_LEVEL LOG_LEVEL_DBG
 #endif
+
+#define debug_mode false
 
 /*---------------------------------------------------------------------------*/
 /* MQTT broker address. */
@@ -66,30 +67,6 @@ static const char *broker_ip = MQTT_CLIENT_BROKER_IP_ADDR;
 #define DEFAULT_PUBLISH_INTERVAL    (5 * CLOCK_SECOND)
 #define EATING_RATE    (14 * CLOCK_SECOND)
 
-/*---------------------------------------------------------------------------*/
-/* Led manipulation */
-#define RGB_LED_RED     1
-#define RGB_LED_GREEN   2
-#define RGB_LED_BLUE    4
-#define RGB_LED_MAGENTA (RGB_LED_RED | RGB_LED_BLUE)
-#define RGB_LED_YELLOW  (RGB_LED_RED | RGB_LED_GREEN)
-#define RGB_LED_CYAN    (RGB_LED_GREEN | RGB_LED_BLUE )
-#define RGB_LED_WHITE   (RGB_LED_RED | RGB_LED_GREEN | RGB_LED_BLUE)
-
-void rgb_led_off(void)
-{
-    leds_off(LEDS_ALL);
-}
-void rgb_led_set(uint8_t colour)
-{
-    leds_mask_t leds =
-            ((colour & RGB_LED_RED) ? LEDS_RED : LEDS_COLOUR_NONE) |
-            ((colour & RGB_LED_GREEN) ? LEDS_GREEN : LEDS_COLOUR_NONE) |
-            ((colour & RGB_LED_BLUE) ? LEDS_BLUE : LEDS_COLOUR_NONE);
-
-    leds_off(LEDS_ALL);
-    leds_on(leds);
-}
 
 /*---------------------------------------------------------------------------*/
 /* Various states */
@@ -185,6 +162,8 @@ static void pub_handler(const char *topic, uint16_t topic_len, const uint8_t *ch
             boot = BOOT_COMPLETED;
             printf("Foodsensor: State Presubscribed & Boot Completed\n");
             //printf("boot %d, state %d", boot, state);
+            leds_off(LEDS_ALL);
+            leds_single_on(LEDS_GREEN);
         } else {
             snprintf(msg_template, sizeof(msg_template), "%s %d denied", NODE_TYPE, candidateID);
             if (strcmp((const char *) chunk, msg_template) == 0) { // controlled rejected Id proposal
@@ -199,7 +178,6 @@ static void pub_handler(const char *topic, uint16_t topic_len, const uint8_t *ch
             snprintf(msg_template, sizeof(msg_template), "%d filling", containerID);
             if (strcmp((const char *) chunk, msg_template) == 0) {
                 LOG_INFO("Bowl %d refilling started \n", containerID);
-                printf("Bowl %d refilling started \n", containerID);
                 filling = true;
             } else {
                 snprintf(msg_template, sizeof(msg_template), "%d stop", containerID);
@@ -295,11 +273,12 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
     etimer_set(&periodic_timer, DEFAULT_PUBLISH_INTERVAL);
     etimer_set(&meal_timer, EATING_RATE);
     etimer_set(&sub_timer, DEFAULT_PUBLISH_INTERVAL);
-    rgb_led_set(RGB_LED_RED);
+    leds_off(LEDS_ALL);
+    leds_single_on(LEDS_YELLOW);
 
     boot = BOOT_INIT;
     /* Main loop */
-    printf("Foodsensor iniziale boot %d \n", boot);
+    printf("Foodsensor initialize boot %d \n", boot);
 
     while (1) {
         PROCESS_YIELD();
@@ -307,14 +286,15 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
         if (etimer_expired(&meal_timer)) {
             meal_time(&foodLevel);
             etimer_reset(&meal_timer);
-            printf("Foodsensor: gnam %d \n", foodLevel);
+            if(debug_mode):
+                printf("Foodsensor: gnam %d \n", foodLevel);
 
         }
 
         if (etimer_expired(&sub_timer)) {
 	    if(state == STATE_PRESUBSCRIBED){
 		strcpy(sub_topic, TOPIC_ACTUATOR);
-		printf("subtopic act: %s\n", sub_topic);
+        printf("Subscribing to topic : %s\n", sub_topic);
 		status_FoodTopic = mqtt_subscribe(&conn, NULL, sub_topic, MQTT_QOS_LEVEL_0);
 		if (status_FoodTopic == MQTT_STATUS_OUT_QUEUE_FULL) {
 		  LOG_ERR("Tried to subscribe but command queue was full!\n");
@@ -327,7 +307,6 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
 		else {
 		      state = STATE_SUBSCRIBED;
 		      printf("Foodsensor: State Subscribed\n");
-		      printf("Foodsensor boot %d state %d \n", boot, state);
 		}	
 
 	     }
@@ -354,7 +333,6 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
             if (boot == BOOT_INIT)
                 { // Subscribe to a topic
                     strcpy(sub_topic, TOPIC_ID_CONFIG);
-		    printf("subtopic: %s\n", sub_topic);
                     statusId_config = mqtt_subscribe(&conn, NULL, sub_topic, MQTT_QOS_LEVEL_0);
                     printf("Subscribing to Id Config\n");
                     if (statusId_config == MQTT_STATUS_OUT_QUEUE_FULL) {
@@ -381,7 +359,6 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
                             // id negotiation: ask controller for Id approval
                             sprintf(app_buffer, "%s %d awakens", NODE_TYPE, candidateID);
                             sprintf(pub_topic, "%s", TOPIC_ID_CONFIG);
-                            printf("%s \n", app_buffer);
                             counter =1;
                         }
                         status_Publish = mqtt_publish(&conn, NULL, pub_topic, (uint8_t *) app_buffer, strlen(app_buffer), MQTT_QOS_LEVEL_0,
@@ -422,8 +399,7 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
                 if (filling) {
                     foodLevel += meal_charge;
                 }
-                LOG_INFO("New values on id %d: %d\n", containerID, foodLevel);
-                rgb_led_set(RGB_LED_GREEN);
+                LOG_INFO("Food level on container %d : %d\n", containerID, foodLevel);
                 sprintf(app_buffer, PUBLISH_MSG_TEMPLATE, containerID, foodLevel);
 
                 mqtt_publish(&conn, NULL, pub_topic, (uint8_t *) app_buffer, strlen(app_buffer), MQTT_QOS_LEVEL_0,
@@ -432,10 +408,10 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
 
             if (state == STATE_DISCONNECTED) {
                 printf("Foodsensor %d: disconnected \n", containerID);
-                LOG_ERR("Disconnected from MQTT broker\n");
                 boot = BOOT_INIT;
-                rgb_led_set(RGB_LED_RED);
-    // Recover from error
+                leds_off(LEDS_ALL);
+                leds_single_on(LEDS_RED);
+                // Recover from error
                 state = STATE_INIT;
                 counter=0;
             }
