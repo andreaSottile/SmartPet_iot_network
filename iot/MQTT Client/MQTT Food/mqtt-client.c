@@ -299,7 +299,6 @@ PROCESS_THREAD(mqtt_client_process, ev, data) {
 		if (status_FoodTopic == MQTT_STATUS_OUT_QUEUE_FULL) {
 		  LOG_ERR("Tried to subscribe but command queue was full!\n");
 		    }
-		printf("%i \n", status_FoodTopic);
 		if (status_FoodTopic != 0) {
 			printf("reset timer for subscribe to topic actuator \n");
                 	etimer_set(&sub_timer, DEFAULT_PUBLISH_INTERVAL);
