@@ -94,11 +94,12 @@
 {% else %}
     Sensor node
 {% endif %}</p>
-<p>{% if node_type != "heartbeat" and client.isFree %}
-    Looking for partner
-{% else %}
-    Paired with a partner
-{% endif %}</p>
+<p>{% if node_type != "heartbeat" %}
+    {% if client.isFree %}
+        Looking for partner
+    {% else %}
+        Paired with a partner
+{% endif %}{% endif %}</p>
 
 <br>
 <br>
